@@ -4,7 +4,7 @@
       <div class="modal">
         <div class="modal-header">
           <h3>Share</h3>
-          <button class="btn-icon close-btn" @click="emit('close')">✕</button>
+          <button class="btn-icon close-btn" @click="emit('close')"><X :size="16" /></button>
         </div>
 
         <!-- Create form -->
@@ -17,7 +17,7 @@
               :class="['scope-tab', scope === s.value ? 'active' : '']"
               @click="setScope(s.value)"
             >
-              <span class="scope-icon">{{ s.icon }}</span>
+              <component :is="s.icon" :size="20" />
               <span>{{ s.label }}</span>
             </button>
           </div>
@@ -28,7 +28,7 @@
             <label>Choose folder</label>
             <select v-model="selectedFolder">
               <option value="" disabled>— select a folder —</option>
-              <option v-for="f in folders" :key="f._id" :value="f._id">📁 {{ f.name }}</option>
+              <option v-for="f in folders" :key="f._id" :value="f._id">{{ f.name }}</option>
             </select>
             <p v-if="scope === 'folder' && !selectedFolder" class="hint">Select a folder above.</p>
           </div>
@@ -88,7 +88,7 @@
 
         <!-- Success state -->
         <div v-else class="modal-body success">
-          <div class="success-icon">✅</div>
+          <div class="success-icon"><CheckCircle2 :size="52" color="#22c55e" /></div>
           <p class="success-label">Share link created!</p>
           <div class="link-row">
             <input :value="shareUrl" readonly class="link-input" />
@@ -107,6 +107,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { Images, Folder, Image as ImageIcon, CheckCircle2, X } from 'lucide-vue-next';
 import { useFolderStore } from '../stores/folders';
 import { useAuthStore } from '../stores/auth';
 import api from '../services/api';
@@ -124,9 +125,9 @@ const authStore = useAuthStore();
 const folders = computed(() => folderStore.folders);
 
 const scopeOptions = [
-  { value: 'all',       label: 'All media',  icon: '📷' },
-  { value: 'folder',    label: 'Folder',     icon: '📁' },
-  { value: 'selection', label: 'This item',  icon: '🖼' }
+  { value: 'all',       label: 'All media',  icon: Images },
+  { value: 'folder',    label: 'Folder',     icon: Folder },
+  { value: 'selection', label: 'This item',  icon: ImageIcon }
 ];
 
 const scopeDescs = {
@@ -287,7 +288,7 @@ const formatDate = (d) =>
   cursor: pointer;
   transition: all 0.15s;
 }
-.scope-tab .scope-icon { font-size: 1.25rem; }
+.scope-tab .scope-icon { display: flex; }
 .scope-tab.active {
   border-color: var(--color-primary);
   color: var(--color-primary);

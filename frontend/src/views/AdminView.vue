@@ -88,14 +88,14 @@
                       class="btn-ghost btn-xs"
                       @click="startEditQuota(user)"
                       title="Edit quota"
-                    >📦</button>
+                    ><HardDrive :size="14" /></button>
                     <button
                       v-if="canEditUser(user)"
                       class="btn-ghost btn-xs"
                       @click="toggleActive(user)"
                       :title="user.isActive ? 'Disable' : 'Enable'"
                     >
-                      {{ user.isActive ? '🔒' : '🔓' }}
+                      <component :is="user.isActive ? Lock : LockOpen" :size="14" />
                     </button>
                     <button
                       v-if="isSuperAdmin && user.role === 'user'"
@@ -103,21 +103,19 @@
                       @click="setRole(user, 'subadmin')"
                       :disabled="stats && stats.subadminCount >= stats.maxSubadmins"
                       title="Promote to subadmin"
-                    >⬆</button>
+                    ><ChevronsUp :size="14" /></button>
                     <button
                       v-if="isSuperAdmin && user.role === 'subadmin'"
                       class="btn-ghost btn-xs"
                       @click="setRole(user, 'user')"
                       title="Demote to user"
-                    >⬇</button>
+                    ><ChevronsDown :size="14" /></button>
                     <button
                       v-if="isSuperAdmin && user._id !== currentUserId && user.role !== 'admin'"
                       class="btn-danger btn-xs"
                       @click="removeUser(user)"
                       title="Delete user"
-                    >
-                      🗑
-                    </button>
+                    ><Trash2 :size="14" /></button>
                   </template>
                 </div>
               </td>
@@ -138,6 +136,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { HardDrive, Lock, LockOpen, ChevronsUp, ChevronsDown, Trash2 } from 'lucide-vue-next';
 import { useAuthStore } from '../stores/auth';
 import Navbar from '../components/Navbar.vue';
 import api from '../services/api';

@@ -7,12 +7,12 @@
       <aside class="sidebar">
         <div class="sidebar-header">
           <span class="sidebar-title">Folders</span>
-          <button class="btn-icon" @click="showNewFolder = true" title="New folder">＋</button>
+          <button class="btn-icon" @click="showNewFolder = true" title="New folder"><FolderPlus :size="16" /></button>
         </div>
         <nav class="folder-nav">
           <!-- Root / All media -->
           <div v-if="editingRootLabel" class="folder-item-edit">
-            <span class="fi">📷</span>
+            <Images :size="16" class="fi" />
             <input
               class="name-input"
               v-model="rootLabelDraft"
@@ -28,16 +28,16 @@
             :class="{ active: imageStore.activeFolder === null }"
             @click="selectFolder(null)"
           >
-            <span class="fi">📷</span>
+            <Images :size="16" class="fi" />
             <span class="folder-name">{{ rootLabel }}</span>
             <span class="folder-count">{{ totalAll }}</span>
-            <button class="folder-rename" @click.stop="startEditRoot" title="Rename">✏️</button>
+            <button class="folder-rename" @click.stop="startEditRoot" title="Rename"><Pencil :size="11" /></button>
           </button>
 
           <!-- Regular folders -->
           <template v-for="f in folderStore.folders" :key="f._id">
             <div v-if="editingFolderId === f._id" class="folder-item-edit">
-              <span class="fi">📁</span>
+              <Folder :size="16" class="fi" />
               <input
                 class="name-input"
                 v-model="folderRenameDraft"
@@ -53,11 +53,11 @@
               :class="{ active: imageStore.activeFolder === f._id }"
               @click="selectFolder(f._id)"
             >
-              <span class="fi">📁</span>
+              <Folder :size="16" class="fi" />
               <span class="folder-name">{{ f.name }}</span>
               <span class="folder-count">{{ f.count }}</span>
-              <button class="folder-rename" @click.stop="startRenameFolder(f)" title="Rename">✏️</button>
-              <button class="folder-del" @click.stop="confirmDeleteFolder(f)" title="Delete folder">✕</button>
+              <button class="folder-rename" @click.stop="startRenameFolder(f)" title="Rename"><Pencil :size="11" /></button>
+              <button class="folder-del" @click.stop="confirmDeleteFolder(f)" title="Delete folder"><X :size="11" /></button>
             </button>
           </template>
         </nav>
@@ -74,7 +74,7 @@
             :class="['chip', imageStore.activeFolder === f._id ? 'chip-active' : '']"
             @click="selectFolder(f._id)"
           >{{ f.name }}</button>
-          <button class="chip chip-add" @click="showNewFolder = true">＋</button>
+          <button class="chip chip-add" @click="showNewFolder = true"><Plus :size="14" /></button>
         </div>
 
         <div class="gallery-header">
@@ -91,12 +91,12 @@
           </div>
           <h2 v-else>
             {{ activeFolderLabel }}
-            <button class="header-rename-btn" @click="startEditHeaderLabel" title="Rename">✏️</button>
+            <button class="header-rename-btn" @click="startEditHeaderLabel" title="Rename"><Pencil :size="14" /></button>
             <span class="count">{{ imageStore.total }}</span>
           </h2>
           <div class="header-actions">
-            <button v-if="imageStore.activeFolder" class="btn-ghost" @click="openFolderShare">🔗 Share folder</button>
-            <button class="btn-primary" @click="showUpload = true">＋ Upload</button>
+            <button v-if="imageStore.activeFolder" class="btn-ghost icon-btn" @click="openFolderShare"><Link2 :size="14" /> Share folder</button>
+            <button class="btn-primary icon-btn" @click="showUpload = true"><Upload :size="14" /> Upload</button>
           </div>
         </div>
 
@@ -133,12 +133,12 @@
               class="folder-tile"
               @click="editingFolderId === f._id ? null : selectFolder(f._id)"
             >
-              <div class="folder-tile-icon">📁</div>
+              <div class="folder-tile-icon"><Folder :size="40" /></div>
               <template v-if="editingFolderId !== f._id">
                 <p class="folder-tile-name">{{ f.name }}</p>
                 <p class="folder-tile-count">{{ f.count }} item{{ f.count !== 1 ? 's' : '' }}</p>
-                <button class="folder-tile-action folder-tile-rename btn-icon" @click.stop="startRenameFolder(f)" title="Rename">✏️</button>
-                <button class="folder-tile-action folder-tile-del btn-icon" @click.stop="confirmDeleteFolder(f)" title="Delete folder">✕</button>
+                <button class="folder-tile-action folder-tile-rename btn-icon" @click.stop="startRenameFolder(f)" title="Rename"><Pencil :size="12" /></button>
+                <button class="folder-tile-action folder-tile-del btn-icon" @click.stop="confirmDeleteFolder(f)" title="Delete folder"><X :size="12" /></button>
               </template>
               <template v-else>
                 <input
@@ -209,6 +209,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
+import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 import { useFolderStore } from '../stores/folders';
 import Navbar from '../components/Navbar.vue';
@@ -416,7 +417,7 @@ const onUploaded = async () => {
 .folder-item:hover { background: var(--color-surface-2); }
 .folder-item.active { background: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary); }
 
-.fi { font-size: 1rem; flex-shrink: 0; }
+.fi { flex-shrink: 0; display: flex; }
 .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-count { font-size: 0.7rem; color: var(--color-muted); background: var(--color-surface-2); padding: 0.1rem 0.375rem; border-radius: 999px; flex-shrink: 0; }
 
@@ -537,7 +538,8 @@ const onUploaded = async () => {
   text-align: center;
 }
 .folder-tile:hover { background: var(--color-surface-2); border-color: var(--color-primary); }
-.folder-tile-icon { font-size: 2.5rem; }
+.folder-tile-icon { display: flex; }
+.icon-btn { display: inline-flex; align-items: center; gap: 0.375rem; }
 .folder-tile-name {
   font-size: 0.825rem;
   font-weight: 600;

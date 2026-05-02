@@ -4,7 +4,7 @@
       <div class="modal">
         <div class="modal-header">
           <h3>Upload media</h3>
-          <button class="btn-icon close-btn" @click="emit('close')">✕</button>
+          <button class="btn-icon close-btn" @click="emit('close')"><X :size="16" /></button>
         </div>
 
         <div
@@ -20,7 +20,7 @@
           <!-- Image preview -->
           <img v-else-if="file && !isVideo" :src="preview" class="preview-media" alt="preview" />
           <div v-else class="drop-hint">
-            <span class="drop-icon">📁</span>
+            <UploadCloud :size="44" class="drop-icon" />
             <p>Drop file here or <strong>click to browse</strong></p>
             <p class="hint-sub">Images: JPEG, PNG, GIF, WEBP, HEIC · Videos: MP4, MOV, WEBM · max 200 MB</p>
           </div>
@@ -39,7 +39,7 @@
             <label>Folder</label>
             <select v-model="selectedFolder">
               <option value="">— No folder (root) —</option>
-              <option v-for="f in folders" :key="f._id" :value="f._id">📁 {{ f.name }}</option>
+              <option v-for="f in folders" :key="f._id" :value="f._id">{{ f.name }}</option>
             </select>
           </div>
           <div class="form-group">
@@ -73,6 +73,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { X, UploadCloud } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 
 const props = defineProps({

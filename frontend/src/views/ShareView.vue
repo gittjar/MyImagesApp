@@ -8,7 +8,7 @@
     <!-- Not found / expired -->
     <div v-else-if="state === 'error'" class="centered">
       <div class="card-simple">
-        <p class="big-icon">❌</p>
+        <XCircle :size="56" class="big-icon" color="var(--color-danger)" />
         <h2>Link not found</h2>
         <p class="muted">{{ errorMsg }}</p>
       </div>
@@ -17,7 +17,7 @@
     <!-- PIN entry -->
     <div v-else-if="state === 'pin'" class="centered">
       <div class="card-simple">
-        <p class="big-icon">🔒</p>
+        <Lock :size="56" class="big-icon" />
         <h2>{{ shareTitle || 'Protected album' }}</h2>
         <p class="muted">Enter the PIN to view these images.</p>
         <form @submit.prevent="submitPin" class="pin-form">
@@ -66,7 +66,7 @@
             <p class="lb-name">{{ lightboxImg.originalName }}</p>
             <p v-if="lightboxImg.description" class="lb-desc">{{ lightboxImg.description }}</p>
           </div>
-          <button class="lbclose" @click="lightboxImg = null">✕</button>
+          <button class="lbclose" @click="lightboxImg = null"><X :size="18" /></button>
         </div>
       </div>
     </Teleport>
@@ -75,6 +75,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { XCircle, Lock, X } from 'lucide-vue-next';
 import { useRoute } from 'vue-router';
 import api from '../services/api';
 

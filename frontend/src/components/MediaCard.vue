@@ -4,7 +4,7 @@
       <!-- Video thumbnail -->
       <div v-if="item.mediaType === 'video'" class="video-thumb">
         <video :src="item.url" preload="metadata" muted playsinline />
-        <div class="play-overlay">▶</div>
+        <div class="play-overlay"><Play :size="36" /></div>
       </div>
       <!-- Image thumbnail -->
       <img v-else :src="item.url" :alt="item.originalName" loading="lazy" />
@@ -20,21 +20,21 @@
     <div class="card-actions" @click.stop>
       <!-- Move to folder -->
       <div class="move-wrap" v-if="folders.length">
-        <button class="act-btn" title="Move to folder" @click.stop="showMoveMenu = !showMoveMenu">📂</button>
+        <button class="act-btn" title="Move to folder" @click.stop="showMoveMenu = !showMoveMenu"><FolderInput :size="14" /></button>
         <div v-if="showMoveMenu" class="move-menu">
-          <button @click.stop="move(null)">📷 Root (no folder)</button>
-          <button v-for="f in folders" :key="f._id" @click.stop="move(f._id)">📁 {{ f.name }}</button>
+          <button @click.stop="move(null)"><Images :size="13" /> Root (no folder)</button>
+          <button v-for="f in folders" :key="f._id" @click.stop="move(f._id)"><Folder :size="13" /> {{ f.name }}</button>
         </div>
       </div>
-      <button class="act-btn" @click.stop="emit('share', item)" title="Share">🔗</button>
-      <button class="act-btn danger-act" @click.stop="emit('delete', item._id)" title="Delete">🗑</button>
+      <button class="act-btn" @click.stop="emit('share', item)" title="Share"><Share2 :size="14" /></button>
+      <button class="act-btn danger-act" @click.stop="emit('delete', item._id)" title="Delete"><Trash2 :size="14" /></button>
     </div>
   </div>
 
   <!-- Lightbox -->
   <Teleport to="body">
     <div v-if="lightbox" class="lightbox" @click.self="lightbox = false" @keyup.esc="lightbox = false" tabindex="0">
-      <button class="close-btn" @click="lightbox = false">✕</button>
+      <button class="close-btn" @click="lightbox = false"><X :size="18" /></button>
       <div class="lightbox-inner">
         <!-- Video player -->
         <video
@@ -63,6 +63,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { Play, FolderInput, Images, Folder, Share2, Trash2, X } from 'lucide-vue-next';
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -142,7 +143,6 @@ const formatDate = (dateStr) =>
   justify-content: center;
   background: rgba(0,0,0,0.35);
   color: #fff;
-  font-size: 1.75rem;
   transition: background 0.2s;
 }
 .card:hover .play-overlay { background: rgba(0,0,0,0.2); }
@@ -205,7 +205,9 @@ const formatDate = (dateStr) =>
   overflow: hidden;
 }
 .move-menu button {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
   width: 100%;
   text-align: left;
   background: none;

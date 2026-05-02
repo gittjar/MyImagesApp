@@ -12,14 +12,14 @@
         <RouterLink v-if="auth.user?.role === 'admin' || auth.user?.role === 'subadmin'" to="/admin" class="btn-ghost nav-btn">Admin</RouterLink>
         <button class="btn-ghost nav-btn" @click="showShare = true">Share</button>
         <button class="btn-icon theme-btn" @click="theme.toggle()" :title="theme.isDark ? 'Switch to light' : 'Switch to dark'">
-          {{ theme.isDark ? '☀️' : '🌙' }}
+          <component :is="theme.isDark ? Sun : Moon" :size="17" />
         </button>
         <button class="btn-ghost nav-btn" @click="handleLogout">Sign out</button>
       </div>
 
       <!-- Mobile hamburger -->
       <div class="mobile-controls">
-        <button class="btn-icon theme-btn" @click="theme.toggle()">{{ theme.isDark ? '☀️' : '🌙' }}</button>
+        <button class="btn-icon theme-btn" @click="theme.toggle()"><component :is="theme.isDark ? Sun : Moon" :size="17" /></button>
         <button class="btn-icon hamburger" @click="menuOpen = !menuOpen">
           <span :class="['bar', { open: menuOpen }]"></span>
         </button>
@@ -43,6 +43,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { Sun, Moon, Share2, LogOut, ShieldCheck } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
