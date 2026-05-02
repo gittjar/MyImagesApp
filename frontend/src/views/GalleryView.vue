@@ -10,27 +10,56 @@
           <button class="btn-icon" @click="showNewFolder = true" title="New folder">＋</button>
         </div>
         <nav class="folder-nav">
+          <!-- Root / All media -->
+          <div v-if="editingRootLabel" class="folder-item-edit">
+            <span class="fi">📷</span>
+            <input
+              class="name-input"
+              v-model="rootLabelDraft"
+              @keyup.enter="saveRootLabel"
+              @keyup.esc="editingRootLabel = false"
+              @blur="saveRootLabel"
+              autofocus
+            />
+          </div>
           <button
+            v-else
             class="folder-item"
             :class="{ active: imageStore.activeFolder === null }"
             @click="selectFolder(null)"
           >
             <span class="fi">📷</span>
-            <span class="folder-name">All media</span>
+            <span class="folder-name">{{ rootLabel }}</span>
             <span class="folder-count">{{ totalAll }}</span>
+            <button class="folder-rename" @click.stop="startEditRoot" title="Rename">✏️</button>
           </button>
-          <button
-            v-for="f in folderStore.folders"
-            :key="f._id"
-            class="folder-item"
-            :class="{ active: imageStore.activeFolder === f._id }"
-            @click="selectFolder(f._id)"
-          >
-            <span class="fi">📁</span>
-            <span class="folder-name">{{ f.name }}</span>
-            <span class="folder-count">{{ f.count }}</span>
-            <button class="folder-del" @click.stop="confirmDeleteFolder(f)" title="Delete folder">✕</button>
-          </button>
+
+          <!-- Regular folders -->
+          <template v-for="f in folderStore.folders" :key="f._id">
+            <div v-if="editingFolderId === f._id" class="folder-item-edit">
+              <span class="fi">📁</span>
+              <input
+                class="name-input"
+                v-model="folderRenameDraft"
+                @keyup.enter="saveRenameFolder(f)"
+                @keyup.esc="editingFolderId = null"
+                @blur="saveRenameFolder(f)"
+                autofocus
+              />
+            </div>
+            <button
+              v-else
+              class="folder-item"
+              :class="{ active: imageStore.activeFolder === f._id }"
+              @click="selectFolder(f._id)"
+            >
+              <span class="fi">📁</span>
+              <span class="folder-name">{{ f.name }}</span>
+              <span class="folder-count">{{ f.count }}</span>
+              <button class="folder-rename" @click.stop="startRenameFolder(f)" title="Rename">✏️</button>
+              <button class="folder-del" @click.stop="confirmDeleteFolder(f)" title="Delete folder">✕</button>
+            </button>
+          </template>
         </nav>
       </aside>
 
@@ -38,7 +67,7 @@
       <main class="gallery-main">
         <!-- Mobile folder chips -->
         <div class="folder-chips">
-          <button :class="['chip', imageStore.activeFolder === null ? 'chip-active' : '']" @click="selectFolder(null)">All</button>
+          <button :class="['chip', imageStore.activeFolder === null ? 'chip-active' : '']" @click="selectFolder(null)">{{ rootLabel }}</button>
           <button
             v-for="f in folderStore.folders"
             :key="f._id"
@@ -49,8 +78,20 @@
         </div>
 
         <div class="gallery-header">
-          <h2>
+          <!-- Editable title -->
+          <div v-if="editingHeaderLabel" class="header-title-edit">
+            <input
+              class="header-name-input"
+              v-model="headerLabelDraft"
+              @keyup.enter="saveHeaderLabel"
+              @keyup.esc="editingHeaderLabel = false"
+              @blur="saveHeaderLabel"
+              autofocus
+            />
+          </div>
+          <h2 v-else>
             {{ activeFolderLabel }}
+            <button class="header-rename-btn" @click="startEditHeaderLabel" title="Rename">✏️</button>
             <span class="count">{{ imageStore.total }}</span>
           </h2>
           <div class="header-actions">
@@ -90,16 +131,26 @@
               v-for="f in folderStore.folders"
               :key="'folder-' + f._id"
               class="folder-tile"
-              @click="selectFolder(f._id)"
+              @click="editingFolderId === f._id ? null : selectFolder(f._id)"
             >
               <div class="folder-tile-icon">📁</div>
-              <p class="folder-tile-name">{{ f.name }}</p>
-              <p class="folder-tile-count">{{ f.count }} item{{ f.count !== 1 ? 's' : '' }}</p>
-              <button
-                class="folder-tile-del btn-icon"
-                @click.stop="confirmDeleteFolder(f)"
-                title="Delete folder"
-              >✕</button>
+              <template v-if="editingFolderId !== f._id">
+                <p class="folder-tile-name">{{ f.name }}</p>
+                <p class="folder-tile-count">{{ f.count }} item{{ f.count !== 1 ? 's' : '' }}</p>
+                <button class="folder-tile-action folder-tile-rename btn-icon" @click.stop="startRenameFolder(f)" title="Rename">✏️</button>
+                <button class="folder-tile-action folder-tile-del btn-icon" @click.stop="confirmDeleteFolder(f)" title="Delete folder">✕</button>
+              </template>
+              <template v-else>
+                <input
+                  class="tile-name-input"
+                  v-model="folderRenameDraft"
+                  @keyup.enter="saveRenameFolder(f)"
+                  @keyup.esc="editingFolderId = null"
+                  @blur="saveRenameFolder(f)"
+                  @click.stop
+                  autofocus
+                />
+              </template>
             </div>
           </template>
 
@@ -157,7 +208,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useImagesStore } from '../stores/images';
 import { useFolderStore } from '../stores/folders';
 import Navbar from '../components/Navbar.vue';
@@ -176,12 +227,68 @@ const newFolderName = ref('');
 const folderError = ref('');
 const totalAll = ref(0);
 
+// ── Rename state ──
+const rootLabel = ref(localStorage.getItem('rootLabel') || 'All media');
+watch(rootLabel, (val) => localStorage.setItem('rootLabel', val));
+
+const editingRootLabel = ref(false);
+const rootLabelDraft = ref('');
+const editingFolderId = ref(null);
+const folderRenameDraft = ref('');
+const editingHeaderLabel = ref(false);
+const headerLabelDraft = ref('');
+
+const startEditRoot = () => {
+  rootLabelDraft.value = rootLabel.value;
+  editingRootLabel.value = true;
+};
+const saveRootLabel = () => {
+  const v = rootLabelDraft.value.trim();
+  if (v) rootLabel.value = v;
+  editingRootLabel.value = false;
+};
+
+const startRenameFolder = (f) => {
+  folderRenameDraft.value = f.name;
+  editingFolderId.value = f._id;
+};
+const saveRenameFolder = async (f) => {
+  editingFolderId.value = null;
+  const v = folderRenameDraft.value.trim();
+  if (!v || v === f.name) return;
+  try { await folderStore.renameFolder(f._id, v); } catch (_) {}
+};
+
+const startEditHeaderLabel = () => {
+  // Renaming root or a folder via the header h2
+  if (!imageStore.activeFolder) {
+    headerLabelDraft.value = rootLabel.value;
+  } else {
+    const f = folderStore.folders.find((f) => f._id === imageStore.activeFolder);
+    headerLabelDraft.value = f?.name ?? '';
+  }
+  editingHeaderLabel.value = true;
+};
+const saveHeaderLabel = async () => {
+  editingHeaderLabel.value = false;
+  const v = headerLabelDraft.value.trim();
+  if (!v) return;
+  if (!imageStore.activeFolder) {
+    rootLabel.value = v;
+  } else {
+    const f = folderStore.folders.find((f) => f._id === imageStore.activeFolder);
+    if (f && v !== f.name) {
+      try { await folderStore.renameFolder(f._id, v); } catch (_) {}
+    }
+  }
+};
+
 const storagePercent = computed(() =>
   imageStore.storageQuota > 0 ? Math.min(100, (imageStore.storageUsed / imageStore.storageQuota) * 100) : 0
 );
 
 const activeFolderLabel = computed(() => {
-  if (!imageStore.activeFolder) return 'All media';
+  if (!imageStore.activeFolder) return rootLabel.value;
   const f = folderStore.folders.find((f) => f._id === imageStore.activeFolder);
   return f?.name ?? 'Folder';
 });
@@ -313,18 +420,84 @@ const onUploaded = async () => {
 .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-count { font-size: 0.7rem; color: var(--color-muted); background: var(--color-surface-2); padding: 0.1rem 0.375rem; border-radius: 999px; flex-shrink: 0; }
 
+.folder-rename {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--color-muted);
+  font-size: 0.65rem;
+  padding: 0.1rem 0.2rem;
+  cursor: pointer;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.folder-item:hover .folder-rename { display: block; }
+.folder-rename:hover { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+
 .folder-del {
   display: none;
   background: none;
   border: none;
   color: var(--color-muted);
-  font-size: 0.7rem;
-  padding: 0.1rem 0.25rem;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.2rem;
   cursor: pointer;
   border-radius: 3px;
+  flex-shrink: 0;
+  line-height: 1;
 }
 .folder-item:hover .folder-del { display: block; }
 .folder-del:hover { color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 15%, transparent); }
+
+/* Inline rename row in the sidebar (replaces the button) */
+.folder-item-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+.name-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  padding: 0.2rem 0.4rem;
+  outline: none;
+}
+
+/* ── Header rename ── */
+.header-title-edit { flex: 1; }
+.header-name-input {
+  font-size: 1.375rem;
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--color-primary);
+  color: var(--color-text);
+  outline: none;
+  width: 100%;
+  max-width: 320px;
+  padding: 0 0.125rem;
+}
+.header-rename-btn {
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  vertical-align: middle;
+  padding: 0 0.25rem;
+  margin-left: 0.25rem;
+  color: var(--color-muted);
+}
+.gallery-header:hover .header-rename-btn { opacity: 1; }
+.header-rename-btn:hover { color: var(--color-primary); }
 
 /* ── Main ── */
 .gallery-main {
@@ -375,18 +548,39 @@ const onUploaded = async () => {
   padding: 0 0.25rem;
 }
 .folder-tile-count { font-size: 0.7rem; color: var(--color-muted); }
-.folder-tile-del {
+.folder-tile-action {
   position: absolute;
   top: 0.3rem;
-  right: 0.3rem;
   display: none;
   font-size: 0.7rem;
   padding: 0.15rem 0.3rem;
   color: var(--color-muted);
   line-height: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 3px;
 }
-.folder-tile:hover .folder-tile-del { display: block; }
+.folder-tile:hover .folder-tile-action { display: block; }
+.folder-tile-rename { right: 1.6rem; }
+.folder-tile-rename:hover { color: var(--color-primary); }
+.folder-tile-del { right: 0.3rem; }
 .folder-tile-del:hover { color: var(--color-danger); }
+
+/* Tile inline rename input */
+.tile-name-input {
+  width: calc(100% - 1rem);
+  background: var(--color-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  color: var(--color-text);
+  font-size: 0.825rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 0.25rem 0.375rem;
+  outline: none;
+  margin-top: 0.25rem;
+}
 
 .storage-bar-wrap { margin-bottom: 1.25rem; }
 .storage-bar { height: 5px; background: var(--color-surface-2); border-radius: 999px; overflow: hidden; margin-bottom: 0.3rem; }
