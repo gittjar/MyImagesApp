@@ -18,6 +18,11 @@ const routes = [
     name: 'Gallery',
     component: () => import('../views/GalleryView.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/share/:token',
+    name: 'Share',
+    component: () => import('../views/ShareView.vue')
   }
 ];
 

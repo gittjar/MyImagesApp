@@ -17,6 +17,8 @@ const uploadToAzure = async (file, userId) => {
     blobHTTPHeaders: { blobContentType: file.mimetype }
   });
 
+  // Container is set to Blob-level anonymous read access,
+  // so the direct URL is publicly accessible (no SAS needed).
   return {
     url: blockBlobClient.url,
     blobName

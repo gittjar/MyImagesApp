@@ -8,18 +8,24 @@
           <img v-if="auth.user?.avatar" :src="auth.user.avatar" class="avatar" :alt="auth.user.name" />
           <span class="username">{{ auth.user?.name }}</span>
         </div>
+        <button class="btn-ghost" @click="showShare = true">Share</button>
         <button class="btn-ghost" @click="handleLogout">Sign out</button>
       </div>
     </div>
   </nav>
+
+  <ShareModal v-if="showShare" @close="showShare = false" />
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import ShareModal from './ShareModal.vue';
 
 const auth = useAuthStore();
 const router = useRouter();
+const showShare = ref(false);
 
 const handleLogout = () => {
   auth.logout();
