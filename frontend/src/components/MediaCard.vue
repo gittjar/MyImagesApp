@@ -9,21 +9,25 @@
       <!-- Image thumbnail -->
       <img v-else :src="item.url" :alt="item.originalName" loading="lazy" />
     </div>
-    <div class="card-body">
+
+    <!-- Name overlay at bottom -->
+    <div class="card-overlay">
       <p class="name" :title="item.originalName">{{ item.originalName }}</p>
-      <p class="meta">{{ formatSize(item.size) }} · {{ formatDate(item.createdAt) }}</p>
+      <p class="meta">{{ formatSize(item.size) }}</p>
     </div>
+
+    <!-- Action buttons top-right -->
     <div class="card-actions" @click.stop>
       <!-- Move to folder -->
       <div class="move-wrap" v-if="folders.length">
-        <button class="btn-icon act-btn" title="Move to folder" @click.stop="showMoveMenu = !showMoveMenu">📂</button>
+        <button class="act-btn" title="Move to folder" @click.stop="showMoveMenu = !showMoveMenu">📂</button>
         <div v-if="showMoveMenu" class="move-menu">
           <button @click.stop="move(null)">📷 Root (no folder)</button>
           <button v-for="f in folders" :key="f._id" @click.stop="move(f._id)">📁 {{ f.name }}</button>
         </div>
       </div>
-      <button class="btn-icon act-btn" @click.stop="emit('share', item)" title="Share">🔗</button>
-      <button class="btn-icon act-btn danger-act" @click.stop="emit('delete', item._id)" title="Delete">🗑</button>
+      <button class="act-btn" @click.stop="emit('share', item)" title="Share">🔗</button>
+      <button class="act-btn danger-act" @click.stop="emit('delete', item._id)" title="Delete">🗑</button>
     </div>
   </div>
 
@@ -91,19 +95,21 @@ const formatDate = (dateStr) =>
 
 <style scoped>
 .card {
-  background: var(--color-surface);
+  background: var(--color-surface-2);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
   position: relative;
+  aspect-ratio: 1;
 }
 .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 
+/* Thumb fills the entire square card */
 .thumb-wrap {
-  aspect-ratio: 1;
-  overflow: hidden;
+  position: absolute;
+  inset: 0;
   background: var(--color-surface-2);
 }
 .thumb-wrap img {
@@ -141,20 +147,48 @@ const formatDate = (dateStr) =>
 }
 .card:hover .play-overlay { background: rgba(0,0,0,0.2); }
 
-.card-body { padding: 0.5rem 0.625rem 0.25rem; }
-.name { font-size: 0.8rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.meta { font-size: 0.7rem; color: var(--color-muted); margin-top: 0.1rem; }
-
-.card-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.375rem 0.375rem;
+/* Name/meta gradient overlay at the bottom */
+.card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1.5rem 0.625rem 0.5rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
+.card:hover .card-overlay { opacity: 1; }
+.name { font-size: 0.775rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta { font-size: 0.675rem; opacity: 0.8; margin-top: 0.1rem; }
 
-.act-btn { font-size: 0.875rem; padding: 0.2rem 0.35rem; }
-.danger-act:hover { color: var(--color-danger); }
+/* Action buttons — absolute top-right, hidden until hover */
+.card-actions {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.card:hover .card-actions { opacity: 1; }
+
+.act-btn {
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.35rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.15s;
+}
+.act-btn:hover { background: rgba(0,0,0,0.8); }
+.danger-act:hover { background: rgba(180,0,0,0.7); }
 
 /* Move dropdown */
 .move-wrap { position: relative; }

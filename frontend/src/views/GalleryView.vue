@@ -74,12 +74,35 @@
           <div v-for="n in 12" :key="n" class="skeleton" />
         </div>
 
-        <div v-else-if="imageStore.images.length === 0" class="empty-state">
+        <!-- Empty state: only when there are truly no items to show -->
+        <div
+          v-else-if="imageStore.images.length === 0 && (imageStore.activeFolder !== null || folderStore.folders.length === 0)"
+          class="empty-state"
+        >
           <p>{{ imageStore.activeFolder ? 'This folder is empty.' : 'No media yet.' }}</p>
           <button class="btn-primary" @click="showUpload = true">Upload</button>
         </div>
 
         <div v-else class="image-grid">
+          <!-- Folder tiles — shown only in root view -->
+          <template v-if="imageStore.activeFolder === null">
+            <div
+              v-for="f in folderStore.folders"
+              :key="'folder-' + f._id"
+              class="folder-tile"
+              @click="selectFolder(f._id)"
+            >
+              <div class="folder-tile-icon">📁</div>
+              <p class="folder-tile-name">{{ f.name }}</p>
+              <p class="folder-tile-count">{{ f.count }} item{{ f.count !== 1 ? 's' : '' }}</p>
+              <button
+                class="folder-tile-del btn-icon"
+                @click.stop="confirmDeleteFolder(f)"
+                title="Delete folder"
+              >✕</button>
+            </div>
+          </template>
+
           <MediaCard
             v-for="item in imageStore.images"
             :key="item._id"
@@ -172,12 +195,12 @@ const formatBytes = (bytes) => {
 
 onMounted(async () => {
   await Promise.all([imageStore.fetchImages(1, null), folderStore.fetchFolders()]);
-  totalAll.value = imageStore.total;
+  totalAll.value = imageStore.total + folderStore.folders.length;
 });
 
 const selectFolder = async (id) => {
   await imageStore.fetchImages(1, id);
-  if (!id) totalAll.value = imageStore.total;
+  if (!id) totalAll.value = imageStore.total + folderStore.folders.length;
 };
 
 const changePage = (p) => imageStore.fetchImages(p);
@@ -197,16 +220,15 @@ const createFolder = async () => {
 const confirmDeleteFolder = async (folder) => {
   if (!confirm(`Delete folder "${folder.name}"? Images will be moved to root.`)) return;
   await folderStore.deleteFolder(folder._id);
-  if (imageStore.activeFolder === folder._id) {
-    await imageStore.fetchImages(1, null);
-    totalAll.value = imageStore.total;
-  }
+  // Always refresh root to pick up moved images; update count
+  await imageStore.fetchImages(1, null);
+  totalAll.value = imageStore.total + folderStore.folders.length;
 };
 
 const handleDelete = async (id) => {
   if (!confirm('Delete this item?')) return;
   await imageStore.deleteImage(id);
-  if (!imageStore.activeFolder) totalAll.value = imageStore.total;
+  if (!imageStore.activeFolder) totalAll.value = imageStore.total + folderStore.folders.length;
 };
 
 const handleShare = (item) => {
@@ -229,7 +251,7 @@ const handleMove = async (id, folderId) => {
 const onUploaded = async () => {
   showUpload.value = false;
   await folderStore.fetchFolders();
-  if (!imageStore.activeFolder) totalAll.value = imageStore.total;
+  if (!imageStore.activeFolder) totalAll.value = imageStore.total + folderStore.folders.length;
 };
 </script>
 
@@ -323,6 +345,48 @@ const onUploaded = async () => {
 
 .gallery-header h2 { font-size: 1.375rem; font-weight: 700; }
 .count { font-size: 0.9rem; font-weight: 400; color: var(--color-muted); margin-left: 0.5rem; }
+
+/* ── Folder tiles (root view) ── */
+.folder-tile {
+  background: var(--color-surface);
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 1rem 0.625rem;
+  position: relative;
+  aspect-ratio: 1;
+  transition: background 0.15s, border-color 0.15s;
+  text-align: center;
+}
+.folder-tile:hover { background: var(--color-surface-2); border-color: var(--color-primary); }
+.folder-tile-icon { font-size: 2.5rem; }
+.folder-tile-name {
+  font-size: 0.825rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  padding: 0 0.25rem;
+}
+.folder-tile-count { font-size: 0.7rem; color: var(--color-muted); }
+.folder-tile-del {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  display: none;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.3rem;
+  color: var(--color-muted);
+  line-height: 1;
+}
+.folder-tile:hover .folder-tile-del { display: block; }
+.folder-tile-del:hover { color: var(--color-danger); }
 
 .storage-bar-wrap { margin-bottom: 1.25rem; }
 .storage-bar { height: 5px; background: var(--color-surface-2); border-radius: 999px; overflow: hidden; margin-bottom: 0.3rem; }

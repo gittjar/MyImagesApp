@@ -17,7 +17,12 @@ export const useImagesStore = defineStore('images', () => {
     activeFolder.value = folderFilter;
     try {
       const params = { page: pageNum, limit: 20 };
-      if (folderFilter) params.folder = folderFilter;
+      // null = root view → fetch only images without a folder
+      if (folderFilter === null) {
+        params.folder = 'none';
+      } else if (folderFilter) {
+        params.folder = folderFilter;
+      }
       const { data } = await api.get('/images', { params });
       images.value = data.images;
       total.value = data.total;
@@ -36,7 +41,9 @@ export const useImagesStore = defineStore('images', () => {
     });
     // Only prepend to current view if it belongs here
     const uploadedFolder = data.image.folder || null;
-    if (activeFolder.value === null || activeFolder.value === uploadedFolder || (activeFolder.value === 'none' && !uploadedFolder)) {
+    const inRoot = activeFolder.value === null && !uploadedFolder;
+    const inFolder = activeFolder.value && activeFolder.value === uploadedFolder;
+    if (inRoot || inFolder) {
       images.value.unshift(data.image);
       total.value++;
     }
