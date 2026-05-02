@@ -10,14 +10,14 @@ const {
 
 const router = express.Router();
 
-// Public (no JWT needed)
-router.get('/:token', getShareInfo);
-router.post('/:token/images', getShareImages);
+// Public (no JWT needed) — route: /share/:userId/:slug
+router.get('/:userId/:slug', getShareInfo);
+router.post('/:userId/:slug/images', getShareImages);
 
 // Authenticated
 router.use(authenticateJWT);
 router.get('/', listShares);
 router.post('/', createShare);
-router.delete('/:token', deleteShare);
+router.delete('/:slug', deleteShare);
 
 module.exports = router;

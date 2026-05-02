@@ -1,16 +1,20 @@
 const mongoose = require('mongoose');
-const crypto = require('crypto');
 
 const shareSchema = new mongoose.Schema({
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  token: { type: String, unique: true, default: () => crypto.randomBytes(16).toString('hex') },
+  // User-defined URL slug — unique per owner, e.g. /share/:ownerId/:slug
+  slug: { type: String, required: true, trim: true, lowercase: true },
   title: { type: String, default: '' },
-  // If empty, share ALL owner's images
+  // 'all' = all owner's media, 'folder' = one folder, 'selection' = specific images
+  scope: { type: String, enum: ['all', 'folder', 'selection'], default: 'all' },
+  folder: { type: mongoose.Schema.Types.ObjectId, ref: 'Folder', default: null },
   images: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Image' }],
-  // PIN stored as 4–8 digit string (hashed with bcrypt in controller)
   pinHash: { type: String, default: null },
   expiresAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now }
 });
+
+// slug is unique per owner, not globally
+shareSchema.index({ owner: 1, slug: 1 }, { unique: true });
 
 module.exports = mongoose.model('Share', shareSchema);

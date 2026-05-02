@@ -22,6 +22,7 @@
           <button v-for="f in folders" :key="f._id" @click.stop="move(f._id)">📁 {{ f.name }}</button>
         </div>
       </div>
+      <button class="btn-icon act-btn" @click.stop="emit('share', item)" title="Share">🔗</button>
       <button class="btn-icon act-btn danger-act" @click.stop="emit('delete', item._id)" title="Delete">🗑</button>
     </div>
   </div>
@@ -63,7 +64,7 @@ const props = defineProps({
   item: { type: Object, required: true },
   folders: { type: Array, default: () => [] }
 });
-const emit = defineEmits(['delete', 'move']);
+const emit = defineEmits(['delete', 'move', 'share']);
 
 const lightbox = ref(false);
 const showMoveMenu = ref(false);

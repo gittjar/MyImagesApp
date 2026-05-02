@@ -79,7 +79,7 @@ import { useRoute } from 'vue-router';
 import api from '../services/api';
 
 const route = useRoute();
-const token = route.params.token;
+const { userId, slug } = route.params;
 
 const state = ref('loading'); // loading | pin | gallery | error
 const shareTitle = ref('');
@@ -92,7 +92,7 @@ const lightboxImg = ref(null);
 
 onMounted(async () => {
   try {
-    const { data } = await api.get(`/share/${token}`);
+    const { data } = await api.get(`/share/${userId}/${slug}`);
     shareTitle.value = data.title;
 
     if (data.hasPin) {
@@ -107,7 +107,7 @@ onMounted(async () => {
 });
 
 const loadImages = async (pin = undefined) => {
-  const { data } = await api.post(`/share/${token}/images`, pin ? { pin } : {});
+  const { data } = await api.post(`/share/${userId}/${slug}/images`, pin ? { pin } : {});
   shareTitle.value = data.title || shareTitle.value;
   images.value = data.images;
   state.value = 'gallery';

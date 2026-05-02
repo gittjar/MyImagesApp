@@ -53,7 +53,10 @@
             {{ activeFolderLabel }}
             <span class="count">{{ imageStore.total }}</span>
           </h2>
-          <button class="btn-primary" @click="showUpload = true">＋ Upload</button>
+          <div class="header-actions">
+            <button v-if="imageStore.activeFolder" class="btn-ghost" @click="openFolderShare">🔗 Share folder</button>
+            <button class="btn-primary" @click="showUpload = true">＋ Upload</button>
+          </div>
         </div>
 
         <!-- Storage bar -->
@@ -84,6 +87,7 @@
             :folders="folderStore.folders"
             @delete="handleDelete"
             @move="handleMove"
+            @share="handleShare"
           />
         </div>
 
@@ -117,6 +121,15 @@
       @close="showUpload = false"
       @uploaded="onUploaded"
     />
+
+    <ShareModal
+      v-if="showShare"
+      :initialScope="shareContext.scope"
+      :initialFolder="shareContext.folderId"
+      :initialImageIds="shareContext.imageIds"
+      :previewItem="shareContext.previewItem"
+      @close="showShare = false"
+    />
   </div>
 </template>
 
@@ -127,12 +140,15 @@ import { useFolderStore } from '../stores/folders';
 import Navbar from '../components/Navbar.vue';
 import MediaCard from '../components/MediaCard.vue';
 import UploadModal from '../components/UploadModal.vue';
+import ShareModal from '../components/ShareModal.vue';
 
 const imageStore = useImagesStore();
 const folderStore = useFolderStore();
 
 const showUpload = ref(false);
 const showNewFolder = ref(false);
+const showShare = ref(false);
+const shareContext = ref({ scope: 'all', folderId: null, imageIds: [], previewItem: null });
 const newFolderName = ref('');
 const folderError = ref('');
 const totalAll = ref(0);
@@ -191,6 +207,16 @@ const handleDelete = async (id) => {
   if (!confirm('Delete this item?')) return;
   await imageStore.deleteImage(id);
   if (!imageStore.activeFolder) totalAll.value = imageStore.total;
+};
+
+const handleShare = (item) => {
+  shareContext.value = { scope: 'selection', folderId: null, imageIds: [item._id], previewItem: item };
+  showShare.value = true;
+};
+
+const openFolderShare = () => {
+  shareContext.value = { scope: 'folder', folderId: imageStore.activeFolder, imageIds: [], previewItem: null };
+  showShare.value = true;
 };
 
 const handleMove = async (id, folderId) => {
@@ -292,6 +318,8 @@ const onUploaded = async () => {
   justify-content: space-between;
   margin-bottom: 0.875rem;
 }
+
+.header-actions { display: flex; gap: 0.5rem; align-items: center; }
 
 .gallery-header h2 { font-size: 1.375rem; font-weight: 700; }
 .count { font-size: 0.9rem; font-weight: 400; color: var(--color-muted); margin-left: 0.5rem; }
