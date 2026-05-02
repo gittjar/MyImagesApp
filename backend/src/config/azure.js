@@ -5,16 +5,18 @@ const getBlobServiceClient = () => {
   return BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
 };
 
-const uploadToAzure = async (file, userId) => {
+const uploadToAzure = async (file, userId, opts = {}) => {
   const client = getBlobServiceClient();
   const containerClient = client.getContainerClient(process.env.AZURE_CONTAINER_NAME);
 
-  const ext = file.originalname.split('.').pop().toLowerCase();
+  const ext = opts.ext || file.originalname.split('.').pop().toLowerCase();
+  const buffer = opts.buffer || file.buffer;
+  const contentType = opts.contentType || file.mimetype;
   const blobName = `${userId}/${uuidv4()}.${ext}`;
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
-  await blockBlobClient.uploadData(file.buffer, {
-    blobHTTPHeaders: { blobContentType: file.mimetype }
+  await blockBlobClient.uploadData(buffer, {
+    blobHTTPHeaders: { blobContentType: contentType }
   });
 
   // Container is set to Blob-level anonymous read access,

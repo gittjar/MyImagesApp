@@ -80,21 +80,22 @@ const submit = async () => {
 
 <style scoped>
 .login-page {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3730a3 0%, #4f46e5 50%, #7c3aed 100%);
   padding: 1.5rem;
 }
 
 .login-card {
-  background: #fff;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 16px;
   padding: 2.5rem 2rem;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -104,12 +105,12 @@ const submit = async () => {
   font-size: 1.75rem;
   font-weight: 700;
   text-align: center;
-  color: #4f46e5;
+  color: var(--color-primary);
 }
 
 .tagline {
   text-align: center;
-  color: #6b7280;
+  color: var(--color-muted);
   font-size: 0.875rem;
   margin-top: -0.5rem;
 }
@@ -121,23 +122,23 @@ const submit = async () => {
   gap: 0.625rem;
   width: 100%;
   padding: 0.625rem;
-  border: 1.5px solid #e5e7eb;
+  border: 1.5px solid var(--color-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface-2);
   font-size: 0.9rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--color-text);
   transition: background 0.2s;
 }
 
 .btn-google:hover {
-  background: #f9fafb;
+  background: var(--color-border);
 }
 
 .divider {
   text-align: center;
   position: relative;
-  color: #9ca3af;
+  color: var(--color-muted);
   font-size: 0.8125rem;
 }
 
@@ -148,7 +149,7 @@ const submit = async () => {
   top: 50%;
   width: 42%;
   height: 1px;
-  background: #e5e7eb;
+  background: var(--color-border);
 }
 
 .divider::before { left: 0; }
@@ -156,7 +157,7 @@ const submit = async () => {
 
 .tabs {
   display: flex;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .tab {
@@ -164,15 +165,15 @@ const submit = async () => {
   padding: 0.5rem;
   background: transparent;
   border-radius: 0;
-  color: #6b7280;
+  color: var(--color-muted);
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   font-size: 0.875rem;
 }
 
 .tab.active {
-  color: #4f46e5;
-  border-bottom-color: #4f46e5;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 form {
@@ -185,5 +186,9 @@ form {
   width: 100%;
   padding: 0.625rem;
   font-size: 0.9rem;
+}
+
+@media (max-width: 480px) {
+  .login-card { padding: 2rem 1.25rem; }
 }
 </style>

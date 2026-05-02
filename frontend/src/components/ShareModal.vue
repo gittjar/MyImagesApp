@@ -122,7 +122,8 @@ const formatDate = (d) =>
 }
 
 .modal {
-  background: #fff;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   width: 100%;
   max-width: 440px;
@@ -141,7 +142,7 @@ const formatDate = (d) =>
 
 .close-btn {
   background: transparent;
-  color: #6b7280;
+  color: var(--color-muted);
   font-size: 1rem;
   padding: 0.25rem;
 }
@@ -179,8 +180,8 @@ const formatDate = (d) =>
 .link-input {
   flex: 1;
   font-size: 0.8125rem;
-  color: #374151;
-  background: #f9fafb;
+  color: var(--color-text);
+  background: var(--color-surface-2);
 }
 
 .btn-copy {

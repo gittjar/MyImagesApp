@@ -48,7 +48,7 @@ router.beforeEach(async (to) => {
     return { name: 'Login' };
   }
 
-  if (to.meta.requiresAdmin && auth.user?.role !== 'admin') {
+  if (to.meta.requiresAdmin && !['admin', 'subadmin'].includes(auth.user?.role)) {
     return { name: 'Gallery' };
   }
 

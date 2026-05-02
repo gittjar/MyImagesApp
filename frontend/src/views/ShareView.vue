@@ -141,7 +141,8 @@ const submitPin = async () => {
 }
 
 .card-simple {
-  background: #fff;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   box-shadow: var(--shadow);
   padding: 2.5rem 2rem;
@@ -203,7 +204,7 @@ const submitPin = async () => {
   border-radius: var(--radius);
   overflow: hidden;
   cursor: pointer;
-  background: #e5e7eb;
+  background: var(--color-surface-2);
   transition: transform 0.2s;
 }
 

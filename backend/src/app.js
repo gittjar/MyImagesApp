@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const imageRoutes = require('./routes/images');
 const shareRoutes = require('./routes/share');
 const adminRoutes = require('./routes/admin');
+const folderRoutes = require('./routes/folders');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/share', shareRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/folders', folderRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

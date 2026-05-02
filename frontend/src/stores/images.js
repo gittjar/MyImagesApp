@@ -10,11 +10,15 @@ export const useImagesStore = defineStore('images', () => {
   const loading = ref(false);
   const storageUsed = ref(0);
   const storageQuota = ref(1 * 1024 ** 3);
+  const activeFolder = ref(null); // null = all, 'none' = unfiled, or folderId string
 
-  const fetchImages = async (pageNum = 1) => {
+  const fetchImages = async (pageNum = 1, folderFilter = activeFolder.value) => {
     loading.value = true;
+    activeFolder.value = folderFilter;
     try {
-      const { data } = await api.get('/images', { params: { page: pageNum, limit: 20 } });
+      const params = { page: pageNum, limit: 20 };
+      if (folderFilter) params.folder = folderFilter;
+      const { data } = await api.get('/images', { params });
       images.value = data.images;
       total.value = data.total;
       page.value = data.page;
@@ -30,15 +34,19 @@ export const useImagesStore = defineStore('images', () => {
     const { data } = await api.post('/images/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    images.value.unshift(data.image);
-    total.value++;
+    // Only prepend to current view if it belongs here
+    const uploadedFolder = data.image.folder || null;
+    if (activeFolder.value === null || activeFolder.value === uploadedFolder || (activeFolder.value === 'none' && !uploadedFolder)) {
+      images.value.unshift(data.image);
+      total.value++;
+    }
     return data.image;
   };
 
   const deleteImage = async (id) => {
     await api.delete(`/images/${id}`);
     images.value = images.value.filter((img) => img._id !== id);
-    total.value--;
+    total.value = Math.max(0, total.value - 1);
   };
 
   const updateImage = async (id, payload) => {
@@ -48,5 +56,6 @@ export const useImagesStore = defineStore('images', () => {
     return data.image;
   };
 
-  return { images, total, page, pages, loading, storageUsed, storageQuota, fetchImages, uploadImage, deleteImage, updateImage };
+  return { images, total, page, pages, loading, storageUsed, storageQuota, activeFolder, fetchImages, uploadImage, deleteImage, updateImage };
 });
+

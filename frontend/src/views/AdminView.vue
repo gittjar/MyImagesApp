@@ -242,18 +242,18 @@ main { padding: 2rem 1.5rem; }
 }
 
 .stat-card {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 1.25rem 1.75rem;
-  min-width: 160px;
+  min-width: 140px;
 }
 
 .stat-value { font-size: 1.75rem; font-weight: 700; color: var(--color-primary); }
 .stat-label { font-size: 0.8125rem; color: var(--color-muted); margin-top: 0.25rem; }
 
 .table-wrap {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow-x: auto;
@@ -279,7 +279,7 @@ td {
 }
 
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: #f9fafb; }
+tr:hover td { background: var(--color-surface-2); }
 
 .user-cell { display: flex; align-items: center; gap: 0.5rem; }
 
@@ -302,11 +302,11 @@ tr:hover td { background: #f9fafb; }
   letter-spacing: 0.04em;
 }
 
-.badge-admin { background: #ede9fe; color: #6d28d9; }
-.badge-subadmin { background: #fef3c7; color: #92400e; }
-.badge-user { background: #e5e7eb; color: #374151; }
-.badge-active { background: #d1fae5; color: #065f46; }
-.badge-inactive { background: #fee2e2; color: #991b1b; }
+.badge-admin { background: color-mix(in srgb, #818cf8 20%, transparent); color: #a78bfa; }
+.badge-subadmin { background: color-mix(in srgb, #f59e0b 20%, transparent); color: #f59e0b; }
+.badge-user { background: var(--color-surface-2); color: var(--color-muted); }
+.badge-active { background: color-mix(in srgb, #34d399 20%, transparent); color: #34d399; }
+.badge-inactive { background: color-mix(in srgb, #f87171 20%, transparent); color: #f87171; }
 
 .quota-input {
   width: 70px;
@@ -327,6 +327,6 @@ tr:hover td { background: #f9fafb; }
   justify-content: center;
   gap: 1rem;
   margin-top: 1.5rem;
-  color: #6b7280;
+  color: var(--color-muted);
 }
 </style>
