@@ -8,6 +8,7 @@
           <img v-if="auth.user?.avatar" :src="auth.user.avatar" class="avatar" :alt="auth.user.name" />
           <span class="username">{{ auth.user?.name }}</span>
         </div>
+        <RouterLink v-if="auth.user?.role === 'admin' || auth.user?.role === 'subadmin'" to="/admin" class="btn-ghost nav-btn">Admin</RouterLink>
         <button class="btn-ghost" @click="showShare = true">Share</button>
         <button class="btn-ghost" @click="handleLogout">Sign out</button>
       </div>

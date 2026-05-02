@@ -8,6 +8,8 @@ export const useImagesStore = defineStore('images', () => {
   const page = ref(1);
   const pages = ref(1);
   const loading = ref(false);
+  const storageUsed = ref(0);
+  const storageQuota = ref(1 * 1024 ** 3);
 
   const fetchImages = async (pageNum = 1) => {
     loading.value = true;
@@ -17,6 +19,8 @@ export const useImagesStore = defineStore('images', () => {
       total.value = data.total;
       page.value = data.page;
       pages.value = data.pages;
+      storageUsed.value = data.storageUsed ?? storageUsed.value;
+      storageQuota.value = data.storageQuota ?? storageQuota.value;
     } finally {
       loading.value = false;
     }
@@ -44,5 +48,5 @@ export const useImagesStore = defineStore('images', () => {
     return data.image;
   };
 
-  return { images, total, page, pages, loading, fetchImages, uploadImage, deleteImage, updateImage };
+  return { images, total, page, pages, loading, storageUsed, storageQuota, fetchImages, uploadImage, deleteImage, updateImage };
 });

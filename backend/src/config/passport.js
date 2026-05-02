@@ -31,6 +31,11 @@ passport.use(
           }
         }
 
+        if (!user.isActive) return done(null, false, { message: 'Account is disabled' });
+
+        user.lastLoginAt = new Date();
+        await user.save();
+
         return done(null, user);
       } catch (err) {
         return done(err, null);
@@ -44,6 +49,7 @@ passport.use(
     try {
       const user = await User.findOne({ email: email.toLowerCase() });
       if (!user) return done(null, false, { message: 'Invalid credentials' });
+      if (!user.isActive) return done(null, false, { message: 'Account is disabled' });
       if (!user.password) return done(null, false, { message: 'Please sign in with Google' });
 
       const isMatch = await bcrypt.compare(password, user.password);

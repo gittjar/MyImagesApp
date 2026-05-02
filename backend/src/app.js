@@ -7,6 +7,7 @@ require('./config/passport');
 const authRoutes = require('./routes/auth');
 const imageRoutes = require('./routes/images');
 const shareRoutes = require('./routes/share');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use(passport.initialize());
 app.use('/api/auth', authRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/share', shareRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

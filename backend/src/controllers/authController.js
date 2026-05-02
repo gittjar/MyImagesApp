@@ -26,7 +26,7 @@ const register = async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar }
+      user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar, role: user.role }
     });
   } catch (err) {
     console.error('Register error:', err);
@@ -36,10 +36,11 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   try {
+    await req.user.updateOne({ lastLoginAt: new Date() });
     const token = generateToken(req.user._id);
     res.json({
       token,
-      user: { id: req.user._id, name: req.user.name, email: req.user.email, avatar: req.user.avatar }
+      user: { id: req.user._id, name: req.user.name, email: req.user.email, avatar: req.user.avatar, role: req.user.role }
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -58,7 +59,7 @@ const googleCallback = async (req, res) => {
 
 const getMe = async (req, res) => {
   res.json({
-    user: { id: req.user._id, name: req.user.name, email: req.user.email, avatar: req.user.avatar }
+    user: { id: req.user._id, name: req.user.name, email: req.user.email, avatar: req.user.avatar, role: req.user.role }
   });
 };
 

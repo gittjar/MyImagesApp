@@ -8,6 +8,14 @@
         <button class="btn-primary" @click="showUpload = true">+ Upload</button>
       </div>
 
+      <!-- Storage usage bar -->
+      <div class="storage-bar-wrap">
+        <div class="storage-bar">
+          <div class="storage-fill" :style="{ width: storagePercent + '%', background: storagePercent > 90 ? '#dc2626' : '#4f46e5' }" />
+        </div>
+        <p class="storage-label">{{ formatBytes(store.storageUsed) }} / {{ formatBytes(store.storageQuota) }} used</p>
+      </div>
+
       <div v-if="store.loading" class="loading-grid">
         <div v-for="n in 8" :key="n" class="skeleton" />
       </div>
@@ -39,7 +47,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed } from 'vue';
+import { onMounted } from 'vue';
 import { useImagesStore } from '../stores/images';
 import Navbar from '../components/Navbar.vue';
 import ImageCard from '../components/ImageCard.vue';
@@ -47,6 +56,17 @@ import UploadModal from '../components/UploadModal.vue';
 
 const store = useImagesStore();
 const showUpload = ref(false);
+
+const storagePercent = computed(() =>
+  store.storageQuota > 0 ? Math.min(100, (store.storageUsed / store.storageQuota) * 100) : 0
+);
+
+const formatBytes = (bytes) => {
+  if (!bytes) return '0 B';
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+};
 
 onMounted(() => store.fetchImages());
 
@@ -78,7 +98,30 @@ main {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.storage-bar-wrap {
   margin-bottom: 1.5rem;
+}
+
+.storage-bar {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.25rem;
+}
+
+.storage-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s;
+}
+
+.storage-label {
+  font-size: 0.75rem;
+  color: var(--color-muted);
 }
 
 .gallery-header h2 {
