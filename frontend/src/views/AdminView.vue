@@ -3,26 +3,26 @@
     <Navbar />
     <main class="page-wrapper">
       <div class="admin-header">
-        <h2>Admin Panel</h2>
+        <h2>{{ t('admin.title') }}</h2>
       </div>
 
       <!-- Stats -->
       <div v-if="stats" class="stats-row">
         <div class="stat-card">
           <p class="stat-value">{{ stats.totalUsers }}</p>
-          <p class="stat-label">Users</p>
+          <p class="stat-label">{{ t('admin.statUsers') }}</p>
         </div>
         <div class="stat-card">
           <p class="stat-value">{{ stats.totalImages }}</p>
-          <p class="stat-label">Images</p>
+          <p class="stat-label">{{ t('admin.statImages') }}</p>
         </div>
         <div class="stat-card">
           <p class="stat-value">{{ formatBytes(stats.totalStorageUsed) }}</p>
-          <p class="stat-label">Total storage used</p>
+          <p class="stat-label">{{ t('admin.statStorage') }}</p>
         </div>
         <div class="stat-card">
           <p class="stat-value">{{ stats.subadminCount }} / {{ stats.maxSubadmins }}</p>
-          <p class="stat-label">Subadmins</p>
+          <p class="stat-label">{{ t('admin.statSubadmins') }}</p>
         </div>
       </div>
 
@@ -31,15 +31,15 @@
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Images</th>
-              <th>Storage used</th>
-              <th>Quota</th>
-              <th>Status</th>
-              <th>Last login</th>
-              <th>Actions</th>
+              <th>{{ t('admin.colName') }}</th>
+              <th>{{ t('admin.colEmail') }}</th>
+              <th>{{ t('admin.colRole') }}</th>
+              <th>{{ t('admin.colImages') }}</th>
+              <th>{{ t('admin.colStorageUsed') }}</th>
+              <th>{{ t('admin.colQuota') }}</th>
+              <th>{{ t('admin.colStatus') }}</th>
+              <th>{{ t('admin.colLastLogin') }}</th>
+              <th>{{ t('admin.colActions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -72,28 +72,28 @@
               </td>
               <td>
                 <span :class="['badge', user.isActive ? 'badge-active' : 'badge-inactive']">
-                  {{ user.isActive ? 'Active' : 'Disabled' }}
+                  {{ user.isActive ? t('admin.active') : t('admin.disabled') }}
                 </span>
               </td>
               <td class="muted">{{ user.lastLoginAt ? formatDate(user.lastLoginAt) : '—' }}</td>
               <td>
                 <div class="action-btns">
                   <template v-if="editingQuota === user._id">
-                    <button class="btn-primary btn-xs" @click="saveQuota(user)">Save</button>
-                    <button class="btn-ghost btn-xs" @click="editingQuota = null">Cancel</button>
+                    <button class="btn-primary btn-xs" @click="saveQuota(user)">{{ t('admin.save') }}</button>
+                    <button class="btn-ghost btn-xs" @click="editingQuota = null">{{ t('admin.cancel') }}</button>
                   </template>
                   <template v-else>
                     <button
                       v-if="canEditUser(user)"
                       class="btn-ghost btn-xs"
                       @click="startEditQuota(user)"
-                      title="Edit quota"
+                      :title="t('admin.editQuota')"
                     ><HardDrive :size="14" /></button>
                     <button
                       v-if="canEditUser(user)"
                       class="btn-ghost btn-xs"
                       @click="toggleActive(user)"
-                      :title="user.isActive ? 'Disable' : 'Enable'"
+                      :title="user.isActive ? t('admin.disable') : t('admin.enable')"
                     >
                       <component :is="user.isActive ? Lock : LockOpen" :size="14" />
                     </button>
@@ -102,19 +102,19 @@
                       class="btn-ghost btn-xs"
                       @click="setRole(user, 'subadmin')"
                       :disabled="stats && stats.subadminCount >= stats.maxSubadmins"
-                      title="Promote to subadmin"
+                      :title="t('admin.promoteSubadmin')"
                     ><ChevronsUp :size="14" /></button>
                     <button
                       v-if="isSuperAdmin && user.role === 'subadmin'"
                       class="btn-ghost btn-xs"
                       @click="setRole(user, 'user')"
-                      title="Demote to user"
+                      :title="t('admin.demoteUser')"
                     ><ChevronsDown :size="14" /></button>
                     <button
                       v-if="isSuperAdmin && user._id !== currentUserId && user.role !== 'admin'"
                       class="btn-danger btn-xs"
                       @click="removeUser(user)"
-                      title="Delete user"
+                      :title="t('admin.deleteUser')"
                     ><Trash2 :size="14" /></button>
                   </template>
                 </div>
@@ -126,9 +126,9 @@
 
       <!-- Pagination -->
       <div v-if="pages > 1" class="pagination">
-        <button class="btn-ghost" :disabled="page <= 1" @click="loadPage(page - 1)">Previous</button>
+        <button class="btn-ghost" :disabled="page <= 1" @click="loadPage(page - 1)">{{ t('admin.prev') }}</button>
         <span>{{ page }} / {{ pages }}</span>
-        <button class="btn-ghost" :disabled="page >= pages" @click="loadPage(page + 1)">Next</button>
+        <button class="btn-ghost" :disabled="page >= pages" @click="loadPage(page + 1)">{{ t('admin.next') }}</button>
       </div>
     </main>
   </div>
@@ -136,11 +136,13 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { HardDrive, Lock, LockOpen, ChevronsUp, ChevronsDown, Trash2 } from 'lucide-vue-next';
 import { useAuthStore } from '../stores/auth';
 import Navbar from '../components/Navbar.vue';
 import api from '../services/api';
 
+const { t } = useI18n();
 const auth = useAuthStore();
 const currentUserId = computed(() => auth.user?.id);
 const isSuperAdmin = computed(() => auth.user?.role === 'admin');

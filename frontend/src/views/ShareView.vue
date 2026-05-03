@@ -2,14 +2,14 @@
   <div class="share-page">
     <!-- Loading -->
     <div v-if="state === 'loading'" class="centered">
-      <p class="muted">Loading…</p>
+      <p class="muted">{{ t('shareView.loading') }}</p>
     </div>
 
     <!-- Not found / expired -->
     <div v-else-if="state === 'error'" class="centered">
       <div class="card-simple">
         <XCircle :size="56" class="big-icon" color="var(--color-danger)" />
-        <h2>Link not found</h2>
+        <h2>{{ t('shareView.linkNotFound') }}</h2>
         <p class="muted">{{ errorMsg }}</p>
       </div>
     </div>
@@ -18,21 +18,21 @@
     <div v-else-if="state === 'pin'" class="centered">
       <div class="card-simple">
         <Lock :size="56" class="big-icon" />
-        <h2>{{ shareTitle || 'Protected album' }}</h2>
-        <p class="muted">Enter the PIN to view these images.</p>
+        <h2>{{ shareTitle || t('shareView.protectedAlbum') }}</h2>
+        <p class="muted">{{ t('shareView.enterPin') }}</p>
         <form @submit.prevent="submitPin" class="pin-form">
           <input
             v-model="pinInput"
             type="text"
             inputmode="numeric"
             maxlength="8"
-            placeholder="PIN code"
+            :placeholder="t('shareView.pinPlaceholder')"
             autofocus
             class="pin-input"
           />
           <p v-if="pinError" class="error-msg">{{ pinError }}</p>
           <button type="submit" class="btn-primary" :disabled="pinLoading">
-            {{ pinLoading ? 'Checking…' : 'View images' }}
+            {{ pinLoading ? t('shareView.checking') : t('shareView.viewImages') }}
           </button>
         </form>
       </div>
@@ -41,8 +41,8 @@
     <!-- Gallery -->
     <div v-else-if="state === 'gallery'" class="gallery-wrapper">
       <header class="share-header">
-        <h1>{{ shareTitle || 'Shared album' }}</h1>
-        <p class="muted">{{ images.length }} images</p>
+        <h1>{{ shareTitle || t('shareView.sharedAlbum') }}</h1>
+        <p class="muted">{{ t('shareView.imageCount', images.length) }}</p>
       </header>
 
       <div class="image-grid page-wrapper">
@@ -75,10 +75,12 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { XCircle, Lock, X } from 'lucide-vue-next';
 import { useRoute } from 'vue-router';
 import api from '../services/api';
 
+const { t } = useI18n();
 const route = useRoute();
 const { userId, slug } = route.params;
 

@@ -6,8 +6,8 @@
       <!-- ── Sidebar (folders) desktop ── -->
       <aside class="sidebar">
         <div class="sidebar-header">
-          <span class="sidebar-title">Folders</span>
-          <button class="btn-icon" @click="showNewFolder = true" title="New folder"><FolderPlus :size="16" /></button>
+          <span class="sidebar-title">{{ t('gallery.folders') }}</span>
+          <button class="btn-icon" @click="showNewFolder = true" :title="t('gallery.newFolder')"><FolderPlus :size="16" /></button>
         </div>
         <nav class="folder-nav">
           <!-- Root / All media -->
@@ -31,7 +31,7 @@
             <Images :size="16" class="fi" />
             <span class="folder-name">{{ rootLabel }}</span>
             <span class="folder-count">{{ totalAll }}</span>
-            <button class="folder-rename" @click.stop="startEditRoot" title="Rename"><Pencil :size="11" /></button>
+              <button class="folder-rename" @click.stop="startEditRoot" :title="t('gallery.rename')"><Pencil :size="11" /></button>
           </button>
 
           <!-- Regular folders -->
@@ -56,8 +56,8 @@
               <Folder :size="16" class="fi" />
               <span class="folder-name">{{ f.name }}</span>
               <span class="folder-count">{{ f.count }}</span>
-              <button class="folder-rename" @click.stop="startRenameFolder(f)" title="Rename"><Pencil :size="11" /></button>
-              <button class="folder-del" @click.stop="confirmDeleteFolder(f)" title="Delete folder"><X :size="11" /></button>
+              <button class="folder-rename" @click.stop="startRenameFolder(f)" :title="t('gallery.rename')"><Pencil :size="11" /></button>
+              <button class="folder-del" @click.stop="confirmDeleteFolder(f)" :title="t('gallery.deleteFolder')"><X :size="11" /></button>
             </button>
           </template>
         </nav>
@@ -95,8 +95,8 @@
             <span class="count">{{ imageStore.total }}</span>
           </h2>
           <div class="header-actions">
-            <button v-if="imageStore.activeFolder" class="btn-ghost icon-btn" @click="openFolderShare"><Link2 :size="14" /> Share folder</button>
-            <button class="btn-primary icon-btn" @click="showUpload = true"><Upload :size="14" /> Upload</button>
+            <button v-if="imageStore.activeFolder" class="btn-ghost icon-btn" @click="openFolderShare"><Link2 :size="14" /> {{ t('gallery.shareFolder') }}</button>
+            <button class="btn-primary icon-btn" @click="showUpload = true"><Upload :size="14" /> {{ t('gallery.upload') }}</button>
           </div>
         </div>
 
@@ -108,7 +108,7 @@
               :style="{ width: storagePercent + '%', background: storagePercent > 90 ? 'var(--color-danger)' : 'var(--color-primary)' }"
             />
           </div>
-          <p class="storage-label">{{ formatBytes(imageStore.storageUsed) }} / {{ formatBytes(imageStore.storageQuota) }} used</p>
+          <p class="storage-label">{{ t('gallery.storageUsed', { used: formatBytes(imageStore.storageUsed), quota: formatBytes(imageStore.storageQuota) }) }}</p>
         </div>
 
         <div v-if="imageStore.loading" class="loading-grid">
@@ -120,8 +120,8 @@
           v-else-if="imageStore.images.length === 0 && (imageStore.activeFolder !== null || folderStore.folders.length === 0)"
           class="empty-state"
         >
-          <p>{{ imageStore.activeFolder ? 'This folder is empty.' : 'No media yet.' }}</p>
-          <button class="btn-primary" @click="showUpload = true">Upload</button>
+          <p>{{ imageStore.activeFolder ? t('gallery.emptyFolder') : t('gallery.noMedia') }}</p>
+          <button class="btn-primary" @click="showUpload = true">{{ t('gallery.upload') }}</button>
         </div>
 
         <div v-else class="image-grid">
@@ -136,9 +136,9 @@
               <div class="folder-tile-icon"><Folder :size="40" /></div>
               <template v-if="editingFolderId !== f._id">
                 <p class="folder-tile-name">{{ f.name }}</p>
-                <p class="folder-tile-count">{{ f.count }} item{{ f.count !== 1 ? 's' : '' }}</p>
-                <button class="folder-tile-action folder-tile-rename btn-icon" @click.stop="startRenameFolder(f)" title="Rename"><Pencil :size="12" /></button>
-                <button class="folder-tile-action folder-tile-del btn-icon" @click.stop="confirmDeleteFolder(f)" title="Delete folder"><X :size="12" /></button>
+                <p class="folder-tile-count">{{ t('gallery.items', f.count) }}</p>
+                <button class="folder-tile-action folder-tile-rename btn-icon" @click.stop="startRenameFolder(f)" :title="t('gallery.rename')"><Pencil :size="12" /></button>
+                <button class="folder-tile-action folder-tile-del btn-icon" @click.stop="confirmDeleteFolder(f)" :title="t('gallery.deleteFolder')"><X :size="12" /></button>
               </template>
               <template v-else>
                 <input
@@ -166,9 +166,9 @@
         </div>
 
         <div v-if="imageStore.pages > 1" class="pagination">
-          <button class="btn-ghost" :disabled="imageStore.page <= 1" @click="changePage(imageStore.page - 1)">‹ Prev</button>
+          <button class="btn-ghost" :disabled="imageStore.page <= 1" @click="changePage(imageStore.page - 1)">{{ t('gallery.prev') }}</button>
           <span>{{ imageStore.page }} / {{ imageStore.pages }}</span>
-          <button class="btn-ghost" :disabled="imageStore.page >= imageStore.pages" @click="changePage(imageStore.page + 1)">Next ›</button>
+          <button class="btn-ghost" :disabled="imageStore.page >= imageStore.pages" @click="changePage(imageStore.page + 1)">{{ t('gallery.next') }}</button>
         </div>
       </main>
     </div>
@@ -177,12 +177,12 @@
     <Teleport to="body">
       <div v-if="showNewFolder" class="overlay" @click.self="showNewFolder = false">
         <div class="folder-modal">
-          <h3>New folder</h3>
-          <input v-model="newFolderName" placeholder="Folder name" @keyup.enter="createFolder" autofocus />
+          <h3>{{ t('gallery.newFolderTitle') }}</h3>
+          <input v-model="newFolderName" :placeholder="t('gallery.folderNamePlaceholder')" @keyup.enter="createFolder" autofocus />
           <p v-if="folderError" class="error-msg">{{ folderError }}</p>
           <div class="folder-modal-actions">
-            <button class="btn-ghost" @click="showNewFolder = false">Cancel</button>
-            <button class="btn-primary" @click="createFolder" :disabled="!newFolderName.trim()">Create</button>
+            <button class="btn-ghost" @click="showNewFolder = false">{{ t('gallery.cancel') }}</button>
+            <button class="btn-primary" @click="createFolder" :disabled="!newFolderName.trim()">{{ t('gallery.create') }}</button>
           </div>
         </div>
       </div>
@@ -209,6 +209,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 import { useFolderStore } from '../stores/folders';
@@ -217,6 +218,7 @@ import MediaCard from '../components/MediaCard.vue';
 import UploadModal from '../components/UploadModal.vue';
 import ShareModal from '../components/ShareModal.vue';
 
+const { t } = useI18n();
 const imageStore = useImagesStore();
 const folderStore = useFolderStore();
 

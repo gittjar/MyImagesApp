@@ -3,7 +3,7 @@
     <div class="overlay" @click.self="emit('close')">
       <div class="modal">
         <div class="modal-header">
-          <h3>Share</h3>
+          <h3>{{ t('share.title') }}</h3>
           <button class="btn-icon close-btn" @click="emit('close')"><X :size="16" /></button>
         </div>
 
@@ -25,9 +25,9 @@
 
           <!-- Folder picker -->
           <div v-if="scope === 'folder'" class="form-group">
-            <label>Choose folder</label>
+            <label>{{ t('share.chooseFolder') }}</label>
             <select v-model="selectedFolder">
-              <option value="" disabled>— select a folder —</option>
+              <option value="" disabled>{{ t('share.selectFolderPlaceholder') }}</option>
               <option v-for="f in folders" :key="f._id" :value="f._id">{{ f.name }}</option>
             </select>
             <p v-if="scope === 'folder' && !selectedFolder" class="hint">Select a folder above.</p>
@@ -40,16 +40,16 @@
             <span class="preview-name">{{ previewItem?.originalName }}</span>
           </div>
           <p v-else-if="scope === 'selection'" class="hint">
-            {{ initialImageIds.length }} item(s) selected.
+            {{ t('share.itemsSelected', { n: initialImageIds.length }) }}
           </p>
 
           <div class="form-group">
-            <label>Title <small>(optional)</small></label>
-            <input v-model="title" type="text" placeholder="E.g. Summer 2026" @input="onTitleInput" />
+            <label>{{ t('share.titleLabel') }} <small>{{ t('share.optional') }}</small></label>
+            <input v-model="title" type="text" :placeholder="t('share.titlePlaceholder')" @input="onTitleInput" />
           </div>
 
           <div class="form-group">
-            <label>Link name <small>(required)</small></label>
+            <label>{{ t('share.linkNameLabel') }} <small>{{ t('share.required') }}</small></label>
             <input
               v-model="slug"
               type="text"
@@ -61,27 +61,27 @@
           </div>
 
           <div class="form-group">
-            <label>PIN code <small>(optional, 4–8 digits)</small></label>
-            <input v-model="pin" type="text" inputmode="numeric" maxlength="8" placeholder="Leave empty for no PIN" />
+            <label>{{ t('share.pinLabel') }} <small>{{ t('share.pinOptional') }}</small></label>
+            <input v-model="pin" type="text" inputmode="numeric" maxlength="8" :placeholder="t('share.pinPlaceholder')" />
           </div>
 
           <div class="form-group">
-            <label>Expires in</label>
+            <label>{{ t('share.expiresLabel') }}</label>
             <select v-model="expiresInDays">
-              <option value="">Never</option>
-              <option value="1">1 day</option>
-              <option value="7">7 days</option>
-              <option value="30">30 days</option>
-              <option value="90">90 days</option>
+              <option value="">{{ t('share.never') }}</option>
+              <option value="1">{{ t('share.day1') }}</option>
+              <option value="7">{{ t('share.days7') }}</option>
+              <option value="30">{{ t('share.days30') }}</option>
+              <option value="90">{{ t('share.days90') }}</option>
             </select>
           </div>
 
           <p v-if="error" class="error-msg">{{ error }}</p>
 
           <div class="modal-actions">
-            <button class="btn-ghost" @click="emit('close')">Cancel</button>
+            <button class="btn-ghost" @click="emit('close')">{{ t('share.cancel') }}</button>
             <button class="btn-primary" :disabled="loading || !slug.trim() || (scope === 'folder' && !selectedFolder)" @click="create">
-              {{ loading ? 'Creating…' : 'Create share link' }}
+              {{ loading ? t('share.creating') : t('share.createLink') }}
             </button>
           </div>
         </div>
@@ -89,15 +89,15 @@
         <!-- Success state -->
         <div v-else class="modal-body success">
           <div class="success-icon"><CheckCircle2 :size="52" color="#22c55e" /></div>
-          <p class="success-label">Share link created!</p>
+          <p class="success-label">{{ t('share.successLabel') }}</p>
           <div class="link-row">
             <input :value="shareUrl" readonly class="link-input" />
-            <button class="btn-primary btn-copy" @click="copy">{{ copied ? 'Copied!' : 'Copy' }}</button>
+            <button class="btn-primary btn-copy" @click="copy">{{ copied ? t('share.copied') : t('share.copy') }}</button>
           </div>
-          <p v-if="hasPin" class="pin-note">PIN: <strong>{{ pin }}</strong> — share this separately.</p>
-          <p v-if="expiresAt" class="expiry-note">Expires: {{ formatDate(expiresAt) }}</p>
+          <p v-if="hasPin" class="pin-note">{{ t('share.pinNote', { pin }) }}</p>
+          <p v-if="expiresAt" class="expiry-note">{{ t('share.expiresNote', { date: formatDate(expiresAt) }) }}</p>
           <div class="modal-actions">
-            <button class="btn-ghost" @click="emit('close')">Close</button>
+            <button class="btn-ghost" @click="emit('close')">{{ t('share.close') }}</button>
           </div>
         </div>
       </div>
@@ -107,10 +107,13 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Images, Folder, Image as ImageIcon, CheckCircle2, X } from 'lucide-vue-next';
 import { useFolderStore } from '../stores/folders';
 import { useAuthStore } from '../stores/auth';
 import api from '../services/api';
+
+const { t } = useI18n();
 
 const props = defineProps({
   initialScope: { type: String, default: 'all' },         // 'all' | 'folder' | 'selection'
@@ -124,17 +127,17 @@ const folderStore = useFolderStore();
 const authStore = useAuthStore();
 const folders = computed(() => folderStore.folders);
 
-const scopeOptions = [
-  { value: 'all',       label: 'All media',  icon: Images },
-  { value: 'folder',    label: 'Folder',     icon: Folder },
-  { value: 'selection', label: 'This item',  icon: ImageIcon }
-];
+const scopeOptions = computed(() => [
+  { value: 'all',       label: t('share.allMedia'),  icon: Images },
+  { value: 'folder',    label: t('share.folder'),    icon: Folder },
+  { value: 'selection', label: t('share.thisItem'),  icon: ImageIcon }
+]);
 
-const scopeDescs = {
-  all:       'Share a link to all your media. Recipient sees everything you own.',
-  folder:    'Share a single folder. Only images in that folder are visible.',
-  selection: 'Share one specific image or video. Only this item is visible.'
-};
+const scopeDescs = computed(() => ({
+  all:       t('share.allMediaDesc'),
+  folder:    t('share.folderDesc'),
+  selection: t('share.selectionDesc')
+}));
 
 const scope = ref(props.initialScope);
 const selectedFolder = ref(props.initialFolder || '');
@@ -167,7 +170,7 @@ const shareUrl = ref('');
 const hasPin = ref(false);
 const expiresAt = ref(null);
 
-const currentScopeDesc = computed(() => scopeDescs[scope.value]);
+const currentScopeDesc = computed(() => scopeDescs.value[scope.value]);
 
 const setScope = (s) => {
   // Don't allow changing away from selection if we were passed image IDs
@@ -177,19 +180,19 @@ const setScope = (s) => {
 
 const create = async () => {
   if (!slug.value.trim()) {
-    error.value = 'Link name is required.';
+    error.value = t('share.errLinkRequired');
     return;
   }
   if (!/^[a-z0-9_-]+$/i.test(slug.value)) {
-    error.value = 'Link name may only contain letters, numbers, hyphens and underscores.';
+    error.value = t('share.errLinkInvalid');
     return;
   }
   if (pin.value && !/^\d{4,8}$/.test(pin.value)) {
-    error.value = 'PIN must be 4–8 digits.';
+    error.value = t('share.errPinFormat');
     return;
   }
   if (scope.value === 'folder' && !selectedFolder.value) {
-    error.value = 'Please choose a folder.';
+    error.value = t('share.errNoFolder');
     return;
   }
   error.value = '';
@@ -207,7 +210,7 @@ const create = async () => {
     expiresAt.value = data.expiresAt;
     created.value = true;
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to create share link.';
+    error.value = err.response?.data?.message || t('share.errGeneric');
   } finally {
     loading.value = false;
   }

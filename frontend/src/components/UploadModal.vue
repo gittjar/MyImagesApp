@@ -3,7 +3,7 @@
     <div class="overlay" @click.self="emit('close')">
       <div class="modal">
         <div class="modal-header">
-          <h3>Upload media</h3>
+          <h3>{{ t('upload.title') }}</h3>
           <button class="btn-icon close-btn" @click="emit('close')"><X :size="16" /></button>
         </div>
 
@@ -21,8 +21,8 @@
           <img v-else-if="file && !isVideo" :src="preview" class="preview-media" alt="preview" />
           <div v-else class="drop-hint">
             <UploadCloud :size="44" class="drop-icon" />
-            <p>Drop file here or <strong>click to browse</strong></p>
-            <p class="hint-sub">Images: JPEG, PNG, GIF, WEBP, HEIC · Videos: MP4, MOV, WEBM · max 200 MB</p>
+            <p>{{ t('upload.dropHint') }} <strong>{{ t('upload.clickToBrowse') }}</strong></p>
+            <p class="hint-sub">{{ t('upload.acceptedFormats') }}</p>
           </div>
           <input
             ref="fileInput"
@@ -36,33 +36,33 @@
         <form v-if="file" @submit.prevent="submit" class="meta-form">
           <!-- Folder selector -->
           <div v-if="folders.length" class="form-group">
-            <label>Folder</label>
+            <label>{{ t('upload.folderLabel') }}</label>
             <select v-model="selectedFolder">
-              <option value="">— No folder (root) —</option>
+              <option value="">{{ t('upload.noFolder') }}</option>
               <option v-for="f in folders" :key="f._id" :value="f._id">{{ f.name }}</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Description</label>
-            <textarea v-model="description" rows="2" placeholder="Optional description…" />
+            <label>{{ t('upload.descriptionLabel') }}</label>
+            <textarea v-model="description" rows="2" :placeholder="t('upload.descriptionPlaceholder')" />
           </div>
           <div v-if="!isVideo" class="form-group">
-            <label>Tags <small>(comma separated)</small></label>
-            <input v-model="tags" type="text" placeholder="nature, travel, food" />
+            <label>{{ t('upload.tagsLabel') }} <small>{{ t('upload.tagsHint') }}</small></label>
+            <input v-model="tags" type="text" :placeholder="t('upload.tagsPlaceholder')" />
           </div>
           <div class="form-group checkbox-row">
             <label>
               <input v-model="isPublic" type="checkbox" />
-              Make public
+              {{ t('upload.makePublic') }}
             </label>
           </div>
 
           <p v-if="error" class="error-msg">{{ error }}</p>
 
           <div class="modal-actions">
-            <button type="button" class="btn-ghost" @click="emit('close')">Cancel</button>
+            <button type="button" class="btn-ghost" @click="emit('close')">{{ t('upload.cancel') }}</button>
             <button type="submit" class="btn-primary" :disabled="uploading">
-              {{ uploading ? `Uploading…` : 'Upload' }}
+              {{ uploading ? t('upload.uploading') : t('upload.upload') }}
             </button>
           </div>
         </form>
@@ -73,8 +73,11 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { X, UploadCloud } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
+
+const { t } = useI18n();
 
 const props = defineProps({
   initialFolder: { type: String, default: null },

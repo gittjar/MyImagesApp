@@ -20,14 +20,14 @@
     <div class="card-actions" @click.stop>
       <!-- Move to folder -->
       <div class="move-wrap" v-if="folders.length">
-        <button class="act-btn" title="Move to folder" @click.stop="showMoveMenu = !showMoveMenu"><FolderInput :size="14" /></button>
+        <button class="act-btn" :title="t('media.moveToFolder')" @click.stop="showMoveMenu = !showMoveMenu"><FolderInput :size="14" /></button>
         <div v-if="showMoveMenu" class="move-menu">
-          <button @click.stop="move(null)"><Images :size="13" /> Root (no folder)</button>
+          <button @click.stop="move(null)"><Images :size="13" /> {{ t('media.root') }}</button>
           <button v-for="f in folders" :key="f._id" @click.stop="move(f._id)"><Folder :size="13" /> {{ f.name }}</button>
         </div>
       </div>
-      <button class="act-btn" @click.stop="emit('share', item)" title="Share"><Share2 :size="14" /></button>
-      <button class="act-btn danger-act" @click.stop="emit('delete', item._id)" title="Delete"><Trash2 :size="14" /></button>
+      <button class="act-btn" @click.stop="emit('share', item)" :title="t('media.share')"><Share2 :size="14" /></button>
+      <button class="act-btn danger-act" @click.stop="emit('delete', item._id)" :title="t('media.delete')"><Trash2 :size="14" /></button>
     </div>
   </div>
 
@@ -63,7 +63,10 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Play, FolderInput, Images, Folder, Share2, Trash2, X } from 'lucide-vue-next';
+
+const { t } = useI18n();
 
 const props = defineProps({
   item: { type: Object, required: true },

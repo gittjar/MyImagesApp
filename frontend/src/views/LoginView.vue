@@ -2,7 +2,7 @@
   <div class="login-page">
     <div class="login-card">
       <h1 class="logo">MyImages</h1>
-      <p class="tagline">Your personal image library</p>
+      <p class="tagline">{{ t('login.tagline') }}</p>
 
       <!-- Google login -->
       <button class="btn-google" @click="auth.loginWithGoogle()">
@@ -19,28 +19,28 @@
 
       <!-- Local auth tabs -->
       <div class="tabs">
-        <button :class="['tab', { active: mode === 'login' }]" @click="mode = 'login'">Sign in</button>
-        <button :class="['tab', { active: mode === 'register' }]" @click="mode = 'register'">Register</button>
+        <button :class="['tab', { active: mode === 'login' }]" @click="mode = 'login'">{{ t('login.signIn') }}</button>
+        <button :class="['tab', { active: mode === 'register' }]" @click="mode = 'register'">{{ t('login.register') }}</button>
       </div>
 
       <form @submit.prevent="submit">
         <div v-if="mode === 'register'" class="form-group">
-          <label>Name</label>
-          <input v-model="form.name" type="text" placeholder="Your name" required />
+          <label>{{ t('login.nameLabel') }}</label>
+          <input v-model="form.name" type="text" :placeholder="t('login.namePlaceholder')" required />
         </div>
         <div class="form-group">
-          <label>Email</label>
+          <label>{{ t('login.emailLabel') }}</label>
           <input v-model="form.email" type="email" placeholder="you@example.com" required />
         </div>
         <div class="form-group">
-          <label>Password</label>
+          <label>{{ t('login.passwordLabel') }}</label>
           <input v-model="form.password" type="password" placeholder="••••••••" required />
         </div>
 
         <p v-if="error" class="error-msg">{{ error }}</p>
 
         <button type="submit" class="btn-primary btn-full" :disabled="loading">
-          {{ loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account' }}
+          {{ loading ? t('login.pleaseWait') : mode === 'login' ? t('login.signIn') : t('login.createAccount') }}
         </button>
       </form>
     </div>
@@ -49,9 +49,11 @@
 
 <script setup>
 import { ref, reactive } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 
+const { t } = useI18n();
 const auth = useAuthStore();
 const router = useRouter();
 

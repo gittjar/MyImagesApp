@@ -9,16 +9,18 @@
           <img v-if="auth.user?.avatar" :src="auth.user.avatar" class="avatar" :alt="auth.user.name" />
           <span class="username">{{ auth.user?.name }}</span>
         </div>
-        <RouterLink v-if="auth.user?.role === 'admin' || auth.user?.role === 'subadmin'" to="/admin" class="btn-ghost nav-btn">Admin</RouterLink>
-        <button class="btn-ghost nav-btn" @click="showShare = true">Share</button>
-        <button class="btn-icon theme-btn" @click="theme.toggle()" :title="theme.isDark ? 'Switch to light' : 'Switch to dark'">
+        <RouterLink v-if="auth.user?.role === 'admin' || auth.user?.role === 'subadmin'" to="/admin" class="btn-ghost nav-btn">{{ t('nav.admin') }}</RouterLink>
+        <button class="btn-ghost nav-btn" @click="showShare = true">{{ t('nav.share') }}</button>
+        <button class="btn-ghost nav-btn lang-btn" @click="toggleLang" :title="t('nav.langToggle')">{{ t('nav.langToggle') }}</button>
+        <button class="btn-icon theme-btn" @click="theme.toggle()" :title="theme.isDark ? t('nav.switchToLight') : t('nav.switchToDark')">
           <component :is="theme.isDark ? Sun : Moon" :size="17" />
         </button>
-        <button class="btn-ghost nav-btn" @click="handleLogout">Sign out</button>
+        <button class="btn-ghost nav-btn" @click="handleLogout">{{ t('nav.signOut') }}</button>
       </div>
 
       <!-- Mobile hamburger -->
       <div class="mobile-controls">
+        <button class="btn-ghost nav-btn lang-btn" @click="toggleLang">{{ t('nav.langToggle') }}</button>
         <button class="btn-icon theme-btn" @click="theme.toggle()"><component :is="theme.isDark ? Sun : Moon" :size="17" /></button>
         <button class="btn-icon hamburger" @click="menuOpen = !menuOpen">
           <span :class="['bar', { open: menuOpen }]"></span>
@@ -32,9 +34,9 @@
         <img v-if="auth.user?.avatar" :src="auth.user.avatar" class="avatar" :alt="auth.user.name" />
         <span>{{ auth.user?.name }}</span>
       </div>
-      <RouterLink v-if="auth.user?.role === 'admin' || auth.user?.role === 'subadmin'" to="/admin" class="mobile-link" @click="menuOpen = false">Admin</RouterLink>
-      <button class="mobile-link" @click="showShare = true; menuOpen = false">Share</button>
-      <button class="mobile-link danger-link" @click="handleLogout">Sign out</button>
+      <RouterLink v-if="auth.user?.role === 'admin' || auth.user?.role === 'subadmin'" to="/admin" class="mobile-link" @click="menuOpen = false">{{ t('nav.admin') }}</RouterLink>
+      <button class="mobile-link" @click="showShare = true; menuOpen = false">{{ t('nav.share') }}</button>
+      <button class="mobile-link danger-link" @click="handleLogout">{{ t('nav.signOut') }}</button>
     </div>
   </nav>
 
@@ -43,17 +45,25 @@
 
 <script setup>
 import { ref } from 'vue';
-import { Sun, Moon, Share2, LogOut, ShieldCheck } from 'lucide-vue-next';
+import { Sun, Moon } from 'lucide-vue-next';
+import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
 import ShareModal from './ShareModal.vue';
 
+const { t, locale } = useI18n();
 const auth = useAuthStore();
 const theme = useThemeStore();
 const router = useRouter();
 const showShare = ref(false);
 const menuOpen = ref(false);
+
+const toggleLang = () => {
+  const next = locale.value === 'fi' ? 'en' : 'fi';
+  locale.value = next;
+  localStorage.setItem('lang', next);
+};
 
 const handleLogout = () => {
   auth.logout();
@@ -108,6 +118,7 @@ const handleLogout = () => {
 .username { font-size: 0.875rem; color: var(--color-muted); }
 
 .theme-btn { font-size: 1rem; padding: 0.375rem 0.5rem; }
+.lang-btn { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; padding: 0.25rem 0.5rem; min-width: 2rem; }
 
 /* Mobile hamburger */
 .mobile-controls { display: none; align-items: center; gap: 0.25rem; }
