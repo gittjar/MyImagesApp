@@ -33,36 +33,140 @@
 
   <!-- Lightbox -->
   <Teleport to="body">
-    <div v-if="lightbox" class="lightbox" @click.self="lightbox = false" @keyup.esc="lightbox = false" tabindex="0">
-      <button class="close-btn" @click="lightbox = false"><X :size="18" /></button>
-      <div class="lightbox-inner">
-        <!-- Video player -->
-        <video
-          v-if="item.mediaType === 'video'"
-          :src="item.url"
-          controls
-          autoplay
-          class="lb-video"
-          preload="metadata"
-        />
-        <!-- Image -->
-        <img v-else :src="item.url" :alt="item.originalName" class="lb-img" />
+    <div
+      v-if="lightbox"
+      class="lightbox"
+      @click.self="lightbox = false"
+      @keydown.esc="lightbox = false"
+      tabindex="-1"
+      ref="lightboxEl"
+    >
+      <button class="lb-close" @click="lightbox = false" aria-label="Close">
+        <X :size="20" />
+      </button>
 
-        <div class="lightbox-info">
-          <p class="lb-name">{{ item.originalName }}</p>
-          <p v-if="item.description" class="lb-desc">{{ item.description }}</p>
-          <div v-if="item.tags?.length" class="tags">
-            <span v-for="tag in item.tags" :key="tag" class="tag">{{ tag }}</span>
-          </div>
-          <p class="lb-meta">{{ formatSize(item.size) }} · {{ formatDate(item.createdAt) }}</p>
+      <div class="lb-layout">
+        <!-- Media side -->
+        <div class="lb-media-wrap">
+          <video
+            v-if="item.mediaType === 'video'"
+            :src="item.url"
+            controls
+            autoplay
+            class="lb-video"
+            preload="metadata"
+          />
+          <img v-else :src="item.url" :alt="item.originalName" class="lb-img" />
         </div>
+
+        <!-- Info panel -->
+        <aside class="lb-panel">
+          <p class="lb-filename">{{ item.originalName }}</p>
+          <p v-if="item.description" class="lb-desc">{{ item.description }}</p>
+          <div v-if="item.tags?.length" class="lb-tags">
+            <span v-for="tag in item.tags" :key="tag" class="lb-tag">{{ tag }}</span>
+          </div>
+
+          <!-- File info -->
+          <div class="lb-group">
+            <div class="lb-group-label">Tiedosto</div>
+            <div class="lb-row">
+              <span class="lb-key">Koko</span>
+              <span class="lb-val">{{ formatSize(item.size) }}</span>
+            </div>
+            <div v-if="item.width && item.height" class="lb-row">
+              <span class="lb-key">Resoluutio</span>
+              <span class="lb-val">{{ item.width }} × {{ item.height }} px</span>
+            </div>
+            <div class="lb-row">
+              <span class="lb-key">Ladattu</span>
+              <span class="lb-val">{{ formatDate(item.createdAt) }}</span>
+            </div>
+          </div>
+
+          <!-- EXIF -->
+          <template v-if="item.exif && item.mediaType !== 'video'">
+            <div class="lb-group">
+              <div class="lb-group-label">EXIF</div>
+              <div v-if="item.exif.DateTimeOriginal" class="lb-row">
+                <span class="lb-key">Otettu</span>
+                <span class="lb-val">{{ formatExifDate(item.exif.DateTimeOriginal) }}</span>
+              </div>
+              <div v-if="item.exif.Make || item.exif.Model" class="lb-row">
+                <span class="lb-key">Kamera</span>
+                <span class="lb-val">{{ [item.exif.Make, item.exif.Model].filter(Boolean).join(' ') }}</span>
+              </div>
+              <div v-if="item.exif.LensModel" class="lb-row">
+                <span class="lb-key">Objektiivi</span>
+                <span class="lb-val">{{ item.exif.LensModel }}</span>
+              </div>
+              <div v-if="item.exif.FNumber" class="lb-row">
+                <span class="lb-key">Aukko</span>
+                <span class="lb-val">f/{{ item.exif.FNumber }}</span>
+              </div>
+              <div v-if="item.exif.ExposureTime" class="lb-row">
+                <span class="lb-key">Suljinaika</span>
+                <span class="lb-val">{{ formatShutter(item.exif.ExposureTime) }}</span>
+              </div>
+              <div v-if="item.exif.ISO" class="lb-row">
+                <span class="lb-key">ISO</span>
+                <span class="lb-val">{{ item.exif.ISO }}</span>
+              </div>
+              <div v-if="item.exif.FocalLength" class="lb-row">
+                <span class="lb-key">Polttoväli</span>
+                <span class="lb-val">{{ Number(item.exif.FocalLength).toFixed(1) }} mm</span>
+              </div>
+              <div v-if="item.exif.Flash !== undefined && item.exif.Flash !== null" class="lb-row">
+                <span class="lb-key">Salama</span>
+                <span class="lb-val">{{ formatFlash(item.exif.Flash) }}</span>
+              </div>
+              <div v-if="item.exif.FocalLengthIn35mmFormat" class="lb-row">
+                <span class="lb-key">35mm vast.</span>
+                <span class="lb-val">{{ item.exif.FocalLengthIn35mmFormat }} mm</span>
+              </div>
+              <div v-if="item.exif.ExposureBiasValue !== undefined && item.exif.ExposureBiasValue !== 0" class="lb-row">
+                <span class="lb-key">Korjaus</span>
+                <span class="lb-val">{{ item.exif.ExposureBiasValue > 0 ? '+' : '' }}{{ Number(item.exif.ExposureBiasValue).toFixed(1) }} EV</span>
+              </div>
+              <div v-if="item.exif.WhiteBalance !== undefined" class="lb-row">
+                <span class="lb-key">Valkotasapaino</span>
+                <span class="lb-val">{{ item.exif.WhiteBalance === 0 ? 'Auto' : 'Manuaali' }}</span>
+              </div>
+              <div v-if="item.exif.MeteringMode !== undefined" class="lb-row">
+                <span class="lb-key">Mittaus</span>
+                <span class="lb-val">{{ formatMeteringMode(item.exif.MeteringMode) }}</span>
+              </div>
+              <div v-if="item.exif.ExposureProgram !== undefined" class="lb-row">
+                <span class="lb-key">Ohjelma</span>
+                <span class="lb-val">{{ formatExposureProgram(item.exif.ExposureProgram) }}</span>
+              </div>
+            </div>
+
+            <!-- GPS -->
+            <div v-if="item.exif.latitude !== undefined" class="lb-group">
+              <div class="lb-group-label">Sijainti</div>
+              <div class="lb-row">
+                <span class="lb-key">Koordinaatit</span>
+                <span class="lb-val">{{ formatGPS(item.exif.latitude, item.exif.longitude) }}</span>
+              </div>
+              <div v-if="item.exif.GPSAltitude !== undefined" class="lb-row">
+                <span class="lb-key">Korkeus</span>
+                <span class="lb-val">{{ Math.round(item.exif.GPSAltitude) }} m</span>
+              </div>
+              <div class="lb-row">
+                <span class="lb-key"></span>
+                <a :href="mapsUrl" target="_blank" rel="noopener noreferrer" class="lb-map-link">Avaa kartalla ↗</a>
+              </div>
+            </div>
+          </template>
+        </aside>
       </div>
     </div>
   </Teleport>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Play, FolderInput, Images, Folder, Share2, Trash2, X } from 'lucide-vue-next';
 
@@ -75,7 +179,12 @@ const props = defineProps({
 const emit = defineEmits(['delete', 'move', 'share']);
 
 const lightbox = ref(false);
+const lightboxEl = ref(null);
 const showMoveMenu = ref(false);
+
+watch(lightbox, async (val) => {
+  if (val) { await nextTick(); lightboxEl.value?.focus(); }
+});
 
 const openLightbox = () => {
   showMoveMenu.value = false;
@@ -87,6 +196,13 @@ const move = (folderId) => {
   emit('move', props.item._id, folderId);
 };
 
+const mapsUrl = computed(() => {
+  const lat = props.item.exif?.latitude;
+  const lon = props.item.exif?.longitude;
+  if (lat === undefined || lon === undefined) return '#';
+  return `https://www.google.com/maps?q=${lat},${lon}`;
+});
+
 const formatSize = (bytes) => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -94,7 +210,39 @@ const formatSize = (bytes) => {
 };
 
 const formatDate = (dateStr) =>
-  new Date(dateStr).toLocaleDateString('en-FI', { day: 'numeric', month: 'short', year: 'numeric' });
+  new Date(dateStr).toLocaleDateString('fi-FI', { day: 'numeric', month: 'long', year: 'numeric' });
+
+const formatExifDate = (dateVal) => {
+  if (!dateVal) return '';
+  const d = new Date(dateVal);
+  return isNaN(d.getTime()) ? String(dateVal) : d.toLocaleString('fi-FI', {
+    day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+};
+
+const formatShutter = (secs) => {
+  if (!secs) return '';
+  if (secs >= 1) return `${Number(secs).toFixed(1)} s`;
+  return `1/${Math.round(1 / secs)} s`;
+};
+
+const formatGPS = (lat, lon) => {
+  if (lat === undefined || lon === undefined) return '';
+  return `${Math.abs(lat).toFixed(6)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(6)}° ${lon >= 0 ? 'E' : 'W'}`;
+};
+
+const formatFlash = (flash) => {
+  if (typeof flash === 'boolean') return flash ? 'Laukesi' : 'Ei lauennut';
+  if (typeof flash === 'number') return (flash & 1) ? 'Laukesi' : 'Ei lauennut';
+  return String(flash);
+};
+
+const METERING = { 0: 'Tuntematon', 1: 'Keski-arvo', 2: 'Keski-painotteinen', 3: 'Spot', 4: 'Monitäsmäys', 5: 'Arvioiva', 6: 'Osittainen' };
+const formatMeteringMode = (v) => METERING[v] ?? String(v);
+
+const EXPOSURE_PROGRAM = { 0: 'Ei käytössä', 1: 'Manuaali', 2: 'Normaali', 3: 'Aukko-etusija', 4: 'Suljin-etusija', 5: 'Luova', 6: 'Toiminta', 7: 'Muotokuva', 8: 'Maisema' };
+const formatExposureProgram = (v) => EXPOSURE_PROGRAM[v] ?? String(v);
 </script>
 
 <style scoped>
@@ -225,73 +373,178 @@ const formatDate = (dateStr) =>
 }
 .move-menu button:hover { background: var(--color-surface-2); }
 
-/* Lightbox */
+/* ── Lightbox ── */
 .lightbox {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.92);
+  background: rgba(0, 0, 0, 0.94);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+  overflow: hidden;
+}
+
+.lb-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-  outline: none;
-}
-
-.close-btn {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: rgba(255,255,255,0.1);
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
   color: #fff;
   border: none;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  font-size: 1rem;
   cursor: pointer;
-  z-index: 1;
+  transition: background 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
 }
-.close-btn:hover { background: rgba(255,255,255,0.2); }
+.lb-close:hover { background: rgba(255, 255, 255, 0.24); }
 
-.lightbox-inner {
-  max-width: 960px;
-  width: 100%;
+.lb-layout {
+  flex: 1;
+  min-height: 0;
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  overflow: hidden;
+}
+
+/* ── Media area ── */
+.lb-media-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1.5rem 1.5rem;
+  overflow: hidden;
 }
 
 .lb-img {
-  width: 100%;
-  max-height: 72vh;
+  max-width: 100%;
+  max-height: calc(100dvh - 3.5rem);
   object-fit: contain;
-  border-radius: var(--radius);
+  border-radius: 6px;
+  display: block;
 }
 
 .lb-video {
-  width: 100%;
-  max-height: 75vh;
-  border-radius: var(--radius);
+  max-width: 100%;
+  max-height: calc(100dvh - 3.5rem);
+  border-radius: 6px;
   background: #000;
+  display: block;
 }
 
-.lightbox-info { color: #e0e0e0; }
-.lb-name { font-weight: 600; font-size: 0.9375rem; }
-.lb-desc { font-size: 0.875rem; color: #aaa; margin-top: 0.25rem; }
-.lb-meta { font-size: 0.75rem; color: #888; margin-top: 0.375rem; }
+/* ── Info panel ── */
+.lb-panel {
+  width: 300px;
+  min-width: 300px;
+  background: rgba(255, 255, 255, 0.035);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-y: auto;
+  padding: 3.5rem 1.25rem 1.5rem;
+  color: #e8e8e8;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
 
-.tags { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.5rem; }
-.tag {
-  background: rgba(129,140,248,0.2);
-  color: var(--color-primary);
+.lb-filename {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.lb-desc {
+  font-size: 0.8125rem;
+  color: #aaa;
+  line-height: 1.5;
+}
+
+.lb-tags { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.lb-tag {
+  background: rgba(129, 140, 248, 0.2);
+  color: #818cf8;
   font-size: 0.7rem;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
 }
 
-@media (max-width: 640px) {
-  .lightbox { padding: 0.5rem; }
-  .lb-img, .lb-video { max-height: 60vh; }
+.lb-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.lb-group-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #555;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  margin-bottom: 0.1rem;
+}
+
+.lb-row {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr;
+  gap: 0.375rem;
+  align-items: start;
+}
+
+.lb-key {
+  color: #666;
+  font-size: 0.775rem;
+  line-height: 1.45;
+}
+
+.lb-val {
+  color: #d8d8d8;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.lb-map-link {
+  color: #818cf8;
+  font-size: 0.775rem;
+  text-decoration: none;
+}
+.lb-map-link:hover { text-decoration: underline; }
+
+/* ── Mobile ── */
+@media (max-width: 740px) {
+  .lb-layout { flex-direction: column; }
+
+  .lb-media-wrap {
+    flex: none;
+    height: 52dvh;
+    padding: 3rem 0.75rem 0.5rem;
+  }
+
+  .lb-img, .lb-video { max-height: 52dvh; }
+
+  .lb-panel {
+    width: 100%;
+    min-width: 0;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.875rem 1rem 1rem;
+    flex: 1;
+    min-height: 0;
+    gap: 0.875rem;
+  }
 }
 </style>

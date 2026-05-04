@@ -1,5 +1,6 @@
 const sharp = require('sharp');
 const heicConvert = require('heic-convert');
+const exifr = require('exifr');
 const Image = require('../models/Image');
 const Folder = require('../models/Folder');
 const User = require('../models/User');
@@ -32,6 +33,36 @@ const uploadImage = async (req, res) => {
     let uploadExt = getExt(req.file.originalname);
     let mediaType = 'image';
     let width, height;
+
+    // Extract EXIF from original buffer before conversion strips metadata
+    let exifData = null;
+    if (!isVideoFile(req.file)) {
+      try {
+        const raw = await exifr.parse(req.file.buffer, {
+          tiff: true, exif: true, gps: true, ifd1: false,
+          mergeOutput: true, reviveValues: true, translateValues: false,
+          sanitize: true
+        });
+        if (raw) {
+          console.log('[EXIF raw keys]', Object.keys(raw));
+          const picks = [
+            'Make', 'Model', 'LensMake', 'LensModel',
+            'FNumber', 'ExposureTime', 'ISO', 'FocalLength',
+            'FocalLengthIn35mmFormat', 'ExposureBiasValue',
+            'ExposureProgram', 'MeteringMode', 'WhiteBalance',
+            'SceneCaptureType', 'Flash', 'Orientation',
+            'DateTimeOriginal', 'OffsetTimeOriginal',
+            'latitude', 'longitude', 'GPSAltitude', 'GPSSpeed',
+            'GPSImgDirection', 'GPSHPositioningError'
+          ];
+          exifData = {};
+          picks.forEach(k => { if (raw[k] !== undefined && raw[k] !== null) exifData[k] = raw[k]; });
+          if (!Object.keys(exifData).length) exifData = null;
+        }
+      } catch (e) {
+        console.warn('[EXIF parse error]', e.message);
+      }
+    }
 
     // Convert HEIC/HEIF → JPEG (sharp's prebuilt libvips only supports AVIF, not HEIC)
     if (isHeic(req.file)) {
@@ -91,6 +122,7 @@ const uploadImage = async (req, res) => {
       height,
       description: req.body.description || '',
       tags: req.body.tags ? req.body.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+      exif: exifData,
       isPublic: req.body.isPublic === 'true'
     });
 

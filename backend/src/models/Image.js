@@ -16,6 +16,7 @@ const imageSchema = new mongoose.Schema({
   tags: [{ type: String }],
   isPublic: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
+  exif: { type: mongoose.Schema.Types.Mixed, default: null },
   order: { type: Number, default: 0 }
 });
 
