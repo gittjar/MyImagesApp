@@ -113,7 +113,7 @@ const getImages = async (req, res) => {
     }
 
     const [images, total, user] = await Promise.all([
-      Image.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Image.find(query).sort({ order: 1, createdAt: -1 }).skip(skip).limit(limit),
       Image.countDocuments(query),
       User.findById(req.user._id).select('storageUsed storageQuota')
     ]);
@@ -167,4 +167,24 @@ const updateImage = async (req, res) => {
   }
 };
 
-module.exports = { uploadImage, getImages, deleteImage, updateImage };
+const reorderImages = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || !ids.length) {
+      return res.status(400).json({ message: 'ids array required' });
+    }
+    const ops = ids.map((id, i) => ({
+      updateOne: {
+        filter: { _id: id, user: req.user._id },
+        update: { $set: { order: i + 1 } }
+      }
+    }));
+    await Image.bulkWrite(ops);
+    res.json({ message: 'Reordered' });
+  } catch (err) {
+    console.error('reorderImages error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { uploadImage, getImages, deleteImage, updateImage, reorderImages, reorderImages };

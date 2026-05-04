@@ -34,9 +34,9 @@
               <button class="folder-rename" @click.stop="startEditRoot" :title="t('gallery.rename')"><Pencil :size="11" /></button>
           </button>
 
-          <!-- Regular folders -->
-          <template v-for="f in folderStore.folders" :key="f._id">
-            <div v-if="editingFolderId === f._id" class="folder-item-edit">
+          <!-- Folder tree (indented by depth) -->
+          <template v-for="{ folder: f, depth } in flatFolderTree" :key="f._id">
+            <div v-if="editingFolderId === f._id" class="folder-item-edit" :style="{ paddingLeft: `${0.625 + depth * 0.875}rem` }">
               <Folder :size="16" class="fi" />
               <input
                 class="name-input"
@@ -52,6 +52,7 @@
               class="folder-item"
               :class="{ active: imageStore.activeFolder === f._id }"
               @click="selectFolder(f._id)"
+              :style="{ paddingLeft: `${0.625 + depth * 0.875}rem` }"
             >
               <Folder :size="16" class="fi" />
               <span class="folder-name">{{ f.name }}</span>
@@ -67,14 +68,20 @@
       <main class="gallery-main">
         <!-- Mobile folder chips -->
         <div class="folder-chips">
-          <button :class="['chip', imageStore.activeFolder === null ? 'chip-active' : '']" @click="selectFolder(null)">{{ rootLabel }}</button>
+          <button v-if="imageStore.activeFolder" class="chip" @click="goBack"><ChevronLeft :size="13" />{{ parentFolderLabel }}</button>
+          <button v-else :class="['chip', 'chip-active']">{{ rootLabel }}</button>
           <button
-            v-for="f in folderStore.folders"
+            v-for="f in currentSubfolders"
             :key="f._id"
             :class="['chip', imageStore.activeFolder === f._id ? 'chip-active' : '']"
             @click="selectFolder(f._id)"
           >{{ f.name }}</button>
           <button class="chip chip-add" @click="showNewFolder = true"><Plus :size="14" /></button>
+        </div>
+
+        <!-- Back navigation when inside a folder -->
+        <div v-if="imageStore.activeFolder" class="back-nav">
+          <button class="btn-ghost icon-btn" @click="goBack"><ChevronLeft :size="14" />{{ parentFolderLabel }}</button>
         </div>
 
         <div class="gallery-header">
@@ -115,20 +122,17 @@
           <div v-for="n in 12" :key="n" class="skeleton" />
         </div>
 
-        <!-- Empty state: only when there are truly no items to show -->
-        <div
-          v-else-if="imageStore.images.length === 0 && (imageStore.activeFolder !== null || folderStore.folders.length === 0)"
-          class="empty-state"
-        >
-          <p>{{ imageStore.activeFolder ? t('gallery.emptyFolder') : t('gallery.noMedia') }}</p>
-          <button class="btn-primary" @click="showUpload = true">{{ t('gallery.upload') }}</button>
-        </div>
+        <template v-else>
+          <!-- Empty state: no subfolders and no images -->
+          <div v-if="!currentSubfolders.length && !imageStore.images.length" class="empty-state">
+            <p>{{ imageStore.activeFolder ? t('gallery.emptyFolder') : t('gallery.noMedia') }}</p>
+            <button class="btn-primary" @click="showUpload = true">{{ t('gallery.upload') }}</button>
+          </div>
 
-        <div v-else class="image-grid">
-          <!-- Folder tiles — shown only in root view -->
-          <template v-if="imageStore.activeFolder === null">
+          <!-- Folder / subfolder tiles -->
+          <div v-if="currentSubfolders.length" class="image-grid" :class="{ 'tiles-above': imageStore.images.length }">
             <div
-              v-for="f in folderStore.folders"
+              v-for="f in currentSubfolders"
               :key="'folder-' + f._id"
               class="folder-tile"
               @click="editingFolderId === f._id ? null : selectFolder(f._id)"
@@ -152,18 +156,29 @@
                 />
               </template>
             </div>
-          </template>
+          </div>
 
-          <MediaCard
-            v-for="item in imageStore.images"
-            :key="item._id"
-            :item="item"
-            :folders="folderStore.folders"
-            @delete="handleDelete"
-            @move="handleMove"
-            @share="handleShare"
-          />
-        </div>
+          <!-- Draggable image grid -->
+          <draggable
+            v-if="imageStore.images.length"
+            v-model="draggableImages"
+            tag="div"
+            class="image-grid"
+            item-key="_id"
+            @end="onDragEnd"
+            :animation="150"
+          >
+            <template #item="{ element }">
+              <MediaCard
+                :item="element"
+                :folders="folderStore.folders"
+                @delete="handleDelete"
+                @move="handleMove"
+                @share="handleShare"
+              />
+            </template>
+          </draggable>
+        </template>
 
         <div v-if="imageStore.pages > 1" class="pagination">
           <button class="btn-ghost" :disabled="imageStore.page <= 1" @click="changePage(imageStore.page - 1)">{{ t('gallery.prev') }}</button>
@@ -210,7 +225,8 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload } from 'lucide-vue-next';
+import draggable from 'vuedraggable';
+import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload, ChevronLeft } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 import { useFolderStore } from '../stores/folders';
 import Navbar from '../components/Navbar.vue';
@@ -290,6 +306,50 @@ const storagePercent = computed(() =>
   imageStore.storageQuota > 0 ? Math.min(100, (imageStore.storageUsed / imageStore.storageQuota) * 100) : 0
 );
 
+// ── Folder tree (flat list with depth for sidebar) ──
+const flatFolderTree = computed(() => {
+  const build = (parentId, depth) =>
+    folderStore.folders
+      .filter(f => (f.parent ? f.parent.toString() : null) === (parentId ? parentId.toString() : null))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .flatMap(f => [{ folder: f, depth }, ...build(f._id, depth + 1)]);
+  return build(null, 0);
+});
+
+// Direct children of current view (root → top-level folders, folder → subfolders)
+const currentSubfolders = computed(() =>
+  folderStore.folders
+    .filter(f => (f.parent ? f.parent.toString() : null) === (imageStore.activeFolder ? imageStore.activeFolder.toString() : null))
+    .sort((a, b) => a.name.localeCompare(b.name))
+);
+
+const currentFolderObj = computed(() =>
+  folderStore.folders.find(f => f._id === imageStore.activeFolder)
+);
+
+const parentFolderLabel = computed(() => {
+  if (!imageStore.activeFolder) return '';
+  const par = currentFolderObj.value?.parent;
+  if (!par) return rootLabel.value;
+  return folderStore.folders.find(f => f._id === par.toString())?.name ?? rootLabel.value;
+});
+
+// v-model binding for vuedraggable that updates the Pinia store
+const draggableImages = computed({
+  get: () => imageStore.images,
+  set: (val) => { imageStore.images = val; }
+});
+
+const onDragEnd = () => {
+  imageStore.reorderImages(imageStore.images.map(img => img._id));
+};
+
+const goBack = async () => {
+  const par = currentFolderObj.value?.parent;
+  const parentId = par ? par.toString() : null;
+  await selectFolder(parentId);
+};
+
 const activeFolderLabel = computed(() => {
   if (!imageStore.activeFolder) return rootLabel.value;
   const f = folderStore.folders.find((f) => f._id === imageStore.activeFolder);
@@ -319,7 +379,8 @@ const createFolder = async () => {
   folderError.value = '';
   if (!newFolderName.value.trim()) return;
   try {
-    await folderStore.createFolder(newFolderName.value.trim());
+    // Create as subfolder of current folder if inside one
+    await folderStore.createFolder(newFolderName.value.trim(), imageStore.activeFolder);
     newFolderName.value = '';
     showNewFolder.value = false;
   } catch (err) {
@@ -328,11 +389,18 @@ const createFolder = async () => {
 };
 
 const confirmDeleteFolder = async (folder) => {
-  if (!confirm(`Delete folder "${folder.name}"? Images will be moved to root.`)) return;
+  if (!confirm(`Delete "${folder.name}"? All subfolders will be removed and images moved to root.`)) return;
   await folderStore.deleteFolder(folder._id);
-  // Always refresh root to pick up moved images; update count
-  await imageStore.fetchImages(1, null);
-  totalAll.value = imageStore.total + folderStore.folders.length;
+  // Refetch all folders since subfolders were also deleted server-side
+  await folderStore.fetchFolders();
+  // If we were inside a deleted folder (or its descendant), go back to root
+  const activeStillExists = folderStore.folders.some(f => f._id === imageStore.activeFolder);
+  if (!activeStillExists) {
+    await selectFolder(null);
+  } else {
+    await imageStore.fetchImages(1, imageStore.activeFolder);
+  }
+  totalAll.value = imageStore.total + folderStore.folders.filter(f => !f.parent).length;
 };
 
 const handleDelete = async (id) => {
@@ -590,6 +658,25 @@ const onUploaded = async () => {
 .storage-bar { height: 5px; background: var(--color-surface-2); border-radius: 999px; overflow: hidden; margin-bottom: 0.3rem; }
 .storage-fill { height: 100%; border-radius: 999px; transition: width 0.4s; }
 .storage-label { font-size: 0.75rem; color: var(--color-muted); }
+
+/* Back navigation */
+.back-nav {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.375rem;
+}
+.back-nav .btn-ghost {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+  padding: 0.2rem 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.back-nav .btn-ghost:hover { color: var(--color-primary); }
+
+/* Spacing when folder tiles appear above image grid */
+.tiles-above { margin-bottom: 1rem; }
 
 .image-grid {
   display: grid;

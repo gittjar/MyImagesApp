@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const { authenticateJWT } = require('../middleware/auth');
-const { uploadImage, getImages, deleteImage, updateImage } = require('../controllers/imageController');
+const { uploadImage, getImages, deleteImage, updateImage, reorderImages } = require('../controllers/imageController');
 
 const router = express.Router();
 
@@ -30,6 +30,7 @@ router.use(authenticateJWT);
 
 router.post('/upload', upload.single('image'), uploadImage);
 router.get('/', getImages);
+router.patch('/reorder', reorderImages);
 router.patch('/:id', updateImage);
 router.delete('/:id', deleteImage);
 

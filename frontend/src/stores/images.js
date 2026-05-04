@@ -63,6 +63,15 @@ export const useImagesStore = defineStore('images', () => {
     return data.image;
   };
 
-  return { images, total, page, pages, loading, storageUsed, storageQuota, activeFolder, fetchImages, uploadImage, deleteImage, updateImage };
+  const reorderImages = async (ids) => {
+    await api.patch('/images/reorder', { ids });
+    // Update local order values to match new positions
+    ids.forEach((id, i) => {
+      const img = images.value.find((img) => img._id === id);
+      if (img) img.order = i + 1;
+    });
+  };
+
+  return { images, total, page, pages, loading, storageUsed, storageQuota, activeFolder, fetchImages, uploadImage, deleteImage, updateImage, reorderImages };
 });
 

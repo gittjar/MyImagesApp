@@ -15,7 +15,8 @@ const imageSchema = new mongoose.Schema({
   description: { type: String, default: '' },
   tags: [{ type: String }],
   isPublic: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  order: { type: Number, default: 0 }
 });
 
 module.exports = mongoose.model('Image', imageSchema);

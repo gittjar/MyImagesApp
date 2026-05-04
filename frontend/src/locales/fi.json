@@ -36,7 +36,9 @@
     "folderNamePlaceholder": "Kansion nimi",
     "cancel": "Peruuta",
     "create": "Luo",
-    "items": "{n} kohde | {n} kohdetta"
+    "items": "{n} kohde | {n} kohdetta",
+    "back": "Takaisin",
+    "newSubfolder": "Uusi alikansio"
   },
   "share": {
     "title": "Jaa",

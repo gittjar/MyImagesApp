@@ -10,8 +10,8 @@ export const useFolderStore = defineStore('folders', () => {
     folders.value = data.folders;
   };
 
-  const createFolder = async (name) => {
-    const { data } = await api.post('/folders', { name });
+  const createFolder = async (name, parentId = null) => {
+    const { data } = await api.post('/folders', { name, parentId });
     folders.value.push(data.folder);
     folders.value.sort((a, b) => a.name.localeCompare(b.name));
     return data.folder;

@@ -36,7 +36,9 @@
     "folderNamePlaceholder": "Folder name",
     "cancel": "Cancel",
     "create": "Create",
-    "items": "{n} item | {n} items"
+    "items": "{n} item | {n} items",
+    "back": "Back",
+    "newSubfolder": "New subfolder"
   },
   "share": {
     "title": "Share",
