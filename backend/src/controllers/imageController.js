@@ -1,4 +1,5 @@
 const sharp = require('sharp');
+const heicConvert = require('heic-convert');
 const Image = require('../models/Image');
 const Folder = require('../models/Folder');
 const User = require('../models/User');
@@ -32,9 +33,11 @@ const uploadImage = async (req, res) => {
     let mediaType = 'image';
     let width, height;
 
-    // Convert HEIC/HEIF → JPEG
+    // Convert HEIC/HEIF → JPEG (sharp's prebuilt libvips only supports AVIF, not HEIC)
     if (isHeic(req.file)) {
-      buffer = await sharp(buffer).jpeg({ quality: 90 }).toBuffer();
+      buffer = Buffer.from(
+        await heicConvert({ buffer, format: 'JPEG', quality: 0.9 })
+      );
       mimetype = 'image/jpeg';
       uploadExt = 'jpg';
     } else if (isVideoFile(req.file)) {
