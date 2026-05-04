@@ -141,5 +141,14 @@
     "viewImages": "View images",
     "sharedAlbum": "Shared album",
     "imageCount": "{n} image | {n} images"
+  },
+  "confirm": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "deleteFolder": "Delete folder",
+    "deleteItem": "Delete item",
+    "promoteUser": "Promote to subadmin",
+    "demoteUser": "Demote to user",
+    "deleteUser": "Delete user"
   }
 }

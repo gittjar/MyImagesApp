@@ -140,9 +140,11 @@ import { useI18n } from 'vue-i18n';
 import { HardDrive, Lock, LockOpen, ChevronsUp, ChevronsDown, Trash2 } from 'lucide-vue-next';
 import { useAuthStore } from '../stores/auth';
 import Navbar from '../components/Navbar.vue';
+import { useConfirm } from '../composables/useConfirm';
 import api from '../services/api';
 
 const { t } = useI18n();
+const { ask } = useConfirm();
 const auth = useAuthStore();
 const currentUserId = computed(() => auth.user?.id);
 const isSuperAdmin = computed(() => auth.user?.role === 'admin');
@@ -201,8 +203,14 @@ const toggleActive = async (user) => {
 };
 
 const setRole = async (user, newRole) => {
-  const label = newRole === 'subadmin' ? 'promote to subadmin' : 'demote to user';
-  if (!confirm(`${label} ${user.email}?`)) return;
+  const confirmKey = newRole === 'subadmin' ? t('confirm.promoteUser') : t('confirm.demoteUser');
+  const ok = await ask({
+    title: confirmKey,
+    message: `${confirmKey}: ${user.email}`,
+    confirmLabel: confirmKey,
+    danger: newRole !== 'subadmin'
+  });
+  if (!ok) return;
   const { data } = await api.patch(`/admin/users/${user._id}`, { role: newRole });
   user.role = data.user.role;
   // refresh subadmin count
@@ -210,7 +218,13 @@ const setRole = async (user, newRole) => {
 };
 
 const removeUser = async (user) => {
-  if (!confirm(`Delete user ${user.email} and all their images?`)) return;
+  const ok = await ask({
+    title: t('confirm.deleteUser'),
+    message: `${t('confirm.deleteUser')}: ${user.email}`,
+    confirmLabel: t('confirm.deleteUser'),
+    danger: true
+  });
+  if (!ok) return;
   await api.delete(`/admin/users/${user._id}`);
   users.value = users.value.filter((u) => u._id !== user._id);
   if (stats.value) stats.value.totalUsers--;

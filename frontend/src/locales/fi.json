@@ -141,5 +141,14 @@
     "viewImages": "Näytä kuvat",
     "sharedAlbum": "Jaettu albumi",
     "imageCount": "{n} kuva | {n} kuvaa"
+  },
+  "confirm": {
+    "ok": "OK",
+    "cancel": "Peruuta",
+    "deleteFolder": "Poista kansio",
+    "deleteItem": "Poista kohde",
+    "promoteUser": "Ylennä aliylläpitäjäksi",
+    "demoteUser": "Alenna käyttäjäksi",
+    "deleteUser": "Poista käyttäjä"
   }
 }

@@ -17,6 +17,12 @@
         >
           <!-- Video preview -->
           <video v-if="file && isVideo" :src="preview" class="preview-media" preload="metadata" muted />
+          <!-- HEIC placeholder -->
+          <div v-else-if="file && isHeicFile" class="heic-placeholder">
+            <FileImage :size="44" class="heic-icon" />
+            <p class="heic-name">{{ file.name }}</p>
+            <span class="heic-badge">HEIC</span>
+          </div>
           <!-- Image preview -->
           <img v-else-if="file && !isVideo" :src="preview" class="preview-media" alt="preview" />
           <div v-else class="drop-hint">
@@ -74,7 +80,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { X, UploadCloud } from 'lucide-vue-next';
+import { X, UploadCloud, FileImage } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 
 const { t } = useI18n();
@@ -88,6 +94,8 @@ const store = useImagesStore();
 
 const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov', 'avi', 'mkv']);
 const VIDEO_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/avi', 'video/x-matroska', 'video/x-msvideo']);
+const HEIC_EXTS = new Set(['heic', 'heif']);
+const HEIC_TYPES = new Set(['image/heic', 'image/heif']);
 
 const fileInput = ref(null);
 const file = ref(null);
@@ -106,6 +114,12 @@ const isVideo = computed(() => {
   return VIDEO_TYPES.has(file.value.type) || VIDEO_EXTS.has(ext);
 });
 
+const isHeicFile = computed(() => {
+  if (!file.value) return false;
+  const ext = file.value.name.split('.').pop().toLowerCase();
+  return HEIC_TYPES.has(file.value.type) || HEIC_EXTS.has(ext);
+});
+
 const setFile = (f) => {
   if (!f) return;
   const ext = f.name.split('.').pop().toLowerCase();
@@ -120,7 +134,8 @@ const setFile = (f) => {
     return;
   }
   file.value = f;
-  preview.value = URL.createObjectURL(f);
+  const heic = HEIC_TYPES.has(f.type) || HEIC_EXTS.has(f.name.split('.').pop().toLowerCase());
+  preview.value = heic ? '' : URL.createObjectURL(f);
   error.value = '';
 };
 
@@ -210,6 +225,20 @@ const submit = async () => {
   object-fit: contain;
   display: block;
 }
+
+.heic-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.75rem 1rem;
+  color: var(--color-muted);
+  width: 100%;
+}
+.heic-icon { color: var(--color-primary); opacity: 0.7; }
+.heic-name { font-size: 0.8125rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.heic-badge { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.05em; padding: 0.2em 0.6em; border-radius: 4px; background: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary); }
 
 .meta-form {
   padding: 0 1.25rem 1.25rem;

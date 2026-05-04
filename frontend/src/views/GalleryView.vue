@@ -229,12 +229,14 @@ import draggable from 'vuedraggable';
 import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload, ChevronLeft } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 import { useFolderStore } from '../stores/folders';
+import { useConfirm } from '../composables/useConfirm';
 import Navbar from '../components/Navbar.vue';
 import MediaCard from '../components/MediaCard.vue';
 import UploadModal from '../components/UploadModal.vue';
 import ShareModal from '../components/ShareModal.vue';
 
 const { t } = useI18n();
+const { ask } = useConfirm();
 const imageStore = useImagesStore();
 const folderStore = useFolderStore();
 
@@ -389,7 +391,13 @@ const createFolder = async () => {
 };
 
 const confirmDeleteFolder = async (folder) => {
-  if (!confirm(`Delete "${folder.name}"? All subfolders will be removed and images moved to root.`)) return;
+  const ok = await ask({
+    title: t('confirm.deleteFolder'),
+    message: `"${folder.name}" — ${t('gallery.deleteFolderWarning', 'All subfolders will be removed and images moved to root.')}`,
+    confirmLabel: t('confirm.deleteFolder'),
+    danger: true
+  });
+  if (!ok) return;
   await folderStore.deleteFolder(folder._id);
   // Refetch all folders since subfolders were also deleted server-side
   await folderStore.fetchFolders();
@@ -404,7 +412,13 @@ const confirmDeleteFolder = async (folder) => {
 };
 
 const handleDelete = async (id) => {
-  if (!confirm('Delete this item?')) return;
+  const ok = await ask({
+    title: t('confirm.deleteItem'),
+    message: t('gallery.deleteItemConfirm', 'This item will be permanently deleted.'),
+    confirmLabel: t('confirm.deleteItem'),
+    danger: true
+  });
+  if (!ok) return;
   await imageStore.deleteImage(id);
   if (!imageStore.activeFolder) totalAll.value = imageStore.total + folderStore.folders.length;
 };
