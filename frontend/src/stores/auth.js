@@ -24,13 +24,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
+  const login = async (identifier, password) => {
+    const { data } = await api.post('/auth/login', { identifier, password });
     setAuth(data.token, data.user);
   };
 
-  const register = async (name, email, password) => {
-    const { data } = await api.post('/auth/register', { name, email, password });
+  const register = async (name, email, password, username) => {
+    const { data } = await api.post('/auth/register', { name, email, password, username: username || undefined });
     setAuth(data.token, data.user);
   };
 

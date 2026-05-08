@@ -9,7 +9,15 @@ const router = express.Router();
 router.post('/register', register);
 router.post(
   '/login',
-  passport.authenticate('local', { session: false }),
+  (req, res, next) => {
+    // passport-local needs the field called 'identifier' (configured in passport.js)
+    passport.authenticate('local', { session: false }, (err, user, info) => {
+      if (err) return next(err);
+      if (!user) return res.status(401).json({ message: info?.message || 'Invalid credentials' });
+      req.user = user;
+      next();
+    })(req, res, next);
+  },
   login
 );
 
