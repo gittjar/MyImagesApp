@@ -50,6 +50,23 @@ export const useImagesStore = defineStore('images', () => {
     return data.image;
   };
 
+  const uploadWithProgress = async (formData, onProgress) => {
+    const { data } = await api.post('/images/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => {
+        if (onProgress) onProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 50);
+      }
+    });
+    const uploadedFolder = data.image.folder || null;
+    const inRoot = activeFolder.value === null && !uploadedFolder;
+    const inFolder = activeFolder.value && activeFolder.value === uploadedFolder;
+    if (inRoot || inFolder) {
+      images.value.unshift(data.image);
+      total.value++;
+    }
+    return data.image;
+  };
+
   const deleteImage = async (id) => {
     await api.delete(`/images/${id}`);
     images.value = images.value.filter((img) => img._id !== id);
@@ -72,6 +89,6 @@ export const useImagesStore = defineStore('images', () => {
     });
   };
 
-  return { images, total, page, pages, loading, storageUsed, storageQuota, activeFolder, fetchImages, uploadImage, deleteImage, updateImage, reorderImages };
+  return { images, total, page, pages, loading, storageUsed, storageQuota, activeFolder, fetchImages, uploadImage, uploadWithProgress, deleteImage, updateImage, reorderImages };
 });
 

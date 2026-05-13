@@ -38,6 +38,8 @@
       class="lightbox"
       @click.self="lightbox = false"
       @keydown.esc="lightbox = false"
+      @touchstart.passive="onSwipeStart"
+      @touchend.passive="onSwipeEnd"
       tabindex="-1"
       ref="lightboxEl"
     >
@@ -181,6 +183,20 @@ const emit = defineEmits(['delete', 'move', 'share']);
 const lightbox = ref(false);
 const lightboxEl = ref(null);
 const showMoveMenu = ref(false);
+
+// Swipe-to-close for mobile
+let _swipeStartX = 0;
+let _swipeStartY = 0;
+const onSwipeStart = (e) => {
+  _swipeStartX = e.touches[0].clientX;
+  _swipeStartY = e.touches[0].clientY;
+};
+const onSwipeEnd = (e) => {
+  const dx = e.changedTouches[0].clientX - _swipeStartX;
+  const dy = e.changedTouches[0].clientY - _swipeStartY;
+  // Close on downward swipe (>80px vertical, dominant direction)
+  if (dy > 80 && Math.abs(dy) > Math.abs(dx) * 1.5) lightbox.value = false;
+};
 
 watch(lightbox, async (val) => {
   if (val) { await nextTick(); lightboxEl.value?.focus(); }

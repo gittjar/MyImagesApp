@@ -51,7 +51,9 @@
     "create": "Create",
     "items": "{n} item | {n} items",
     "back": "Back",
-    "newSubfolder": "New subfolder"
+    "newSubfolder": "New subfolder",
+    "deleteFolderWarning": "All subfolders will be removed and images moved to root.",
+    "deleteItemConfirm": "This item will be permanently deleted."
   },
   "share": {
     "title": "Share",
@@ -95,7 +97,8 @@
   },
   "upload": {
     "title": "Upload media",
-    "dropHint": "Drop file here or",
+    "dropHint": "Drop files here or",
+    "dropHere": "Drop to upload!",
     "clickToBrowse": "click to browse",
     "acceptedFormats": "Images: JPEG, PNG, GIF, WEBP, HEIC · Videos: MP4, MOV, WEBM · max 200 MB",
     "folderLabel": "Folder",
@@ -108,7 +111,14 @@
     "makePublic": "Make public",
     "cancel": "Cancel",
     "uploading": "Uploading…",
-    "upload": "Upload"
+    "upload": "Upload",
+    "addMore": "Add more files",
+    "fromCamera": "Take photo / video",
+    "filesUploaded": "files uploaded",
+    "allComplete": "All uploaded!",
+    "close": "Done",
+    "fileTooLarge": "exceeds 200 MB limit",
+    "uploadFailed": "Upload failed. Please try again."
   },
   "media": {
     "moveToFolder": "Move to folder",

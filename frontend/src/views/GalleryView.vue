@@ -84,6 +84,21 @@
           <button class="btn-ghost icon-btn" @click="goBack"><ChevronLeft :size="14" />{{ parentFolderLabel }}</button>
         </div>
 
+        <!-- ── Inline drag-drop zone ── -->
+        <div
+          class="inline-drop-zone"
+          :class="{ 'drop-active': dragOver }"
+          @dragover.prevent="dragOver = true"
+          @dragleave.self="dragOver = false"
+          @drop.prevent="onInlineDrop"
+          @click="fileInputRef?.click()"
+          :title="t('upload.dropHint')"
+        >
+          <Upload :size="16" class="drop-zone-icon" />
+          <span>{{ dragOver ? t('upload.dropHere') : t('gallery.upload') }}</span>
+          <input ref="fileInputRef" type="file" accept="image/*,video/*,.heic,.heif" multiple hidden @change="onInlineFileChange" />
+        </div>
+
         <div class="gallery-header">
           <!-- Editable title -->
           <div v-if="editingHeaderLabel" class="header-title-edit">
@@ -219,14 +234,52 @@
       :previewItem="shareContext.previewItem"
       @close="showShare = false"
     />
+
+    <!-- ── Upload progress panel (fixed bottom-right) ── -->
+    <Transition name="slide-up">
+      <div v-if="uploadTasks.length" class="progress-panel">
+        <div class="progress-panel-header">
+          <span class="progress-panel-title">
+            {{ isUploading ? t('upload.uploading') : (showUploadDone ? t('upload.allComplete') : t('upload.title')) }}
+          </span>
+          <button class="btn-icon" @click="uploadTasks = []; showUploadDone = false"><X :size="13" /></button>
+        </div>
+        <div class="progress-panel-tasks">
+          <div v-for="task in uploadTasks" :key="task.name" class="pp-task">
+            <div class="pp-task-row">
+              <span class="pp-name">{{ task.name }}</span>
+              <span v-if="task.status === 'done'" class="pp-done">✓</span>
+              <span v-else-if="task.status === 'error'" class="pp-err">✗</span>
+              <span v-else class="pp-pct">{{ task.progress }}%</span>
+            </div>
+            <div class="pp-bar">
+              <div class="pp-fill"
+                :class="{ 'pp-fill-done': task.status === 'done', 'pp-fill-err': task.status === 'error' }"
+                :style="{ width: task.progress + '%' }" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ── Mobile FAB (floating action button) ── -->
+    <div class="upload-fab-wrap">
+      <button class="upload-fab" @click="showUpload = true" :title="t('gallery.upload')">
+        <Upload :size="22" />
+      </button>
+      <button class="camera-fab" @click="cameraInputRef?.click()" :title="t('upload.fromCamera')">
+        <Camera :size="18" />
+      </button>
+      <input ref="cameraInputRef" type="file" accept="image/*,video/*" capture="environment" hidden @change="onInlineFileChange" />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import draggable from 'vuedraggable';
-import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload, ChevronLeft } from 'lucide-vue-next';
+import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload, ChevronLeft, Camera } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 import { useFolderStore } from '../stores/folders';
 import { useConfirm } from '../composables/useConfirm';
@@ -247,6 +300,70 @@ const shareContext = ref({ scope: 'all', folderId: null, imageIds: [], previewIt
 const newFolderName = ref('');
 const folderError = ref('');
 const totalAll = ref(0);
+
+// ── Inline drag-drop upload ──
+const fileInputRef = ref(null);
+const cameraInputRef = ref(null);
+const dragOver = ref(false);
+const uploadTasks = ref([]);
+const showUploadDone = ref(false);
+let uploadDoneTimer = null;
+
+const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov', 'avi', 'mkv']);
+const VIDEO_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/avi', 'video/x-matroska', 'video/x-msvideo']);
+const HEIC_EXTS = new Set(['heic', 'heif']);
+
+const isUploading = computed(() => uploadTasks.value.some(t => t.status === 'uploading' || t.status === 'pending-active'));
+
+const uploadFiles = async (files) => {
+  const ACCEPTED = /\.(jpe?g|png|gif|webp|bmp|heic|heif|avif|tiff?|mp4|mov|m4v|webm|3gp|mkv|avi)$/i;
+  const list = Array.from(files).filter(
+    f => f.type.startsWith('image/') || f.type.startsWith('video/') || ACCEPTED.test(f.name)
+  );
+  if (!list.length) return;
+
+  const tasks = list.map(f => ({ name: f.name, progress: 0, status: 'pending', error: '' }));
+  uploadTasks.value = [...uploadTasks.value, ...tasks];
+  showUploadDone.value = false;
+  if (uploadDoneTimer) { clearTimeout(uploadDoneTimer); uploadDoneTimer = null; }
+
+  for (let i = 0; i < list.length; i++) {
+    const file = list[i];
+    const task = uploadTasks.value.find(t => t.name === file.name && t.status === 'pending');
+    if (!task) continue;
+    task.status = 'uploading';
+    task.progress = 0;
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      if (imageStore.activeFolder) fd.append('folder', imageStore.activeFolder);
+      await imageStore.uploadWithProgress(fd, (pct) => { task.progress = pct; });
+      task.progress = 100;
+      task.status = 'done';
+    } catch (e) {
+      task.status = 'error';
+      task.error = e.response?.data?.message || 'Lataus epäonnistui';
+    }
+  }
+
+  // Refresh folders after upload
+  await folderStore.fetchFolders();
+  if (!imageStore.activeFolder) totalAll.value = imageStore.total + folderStore.folders.length;
+
+  showUploadDone.value = true;
+  uploadDoneTimer = setTimeout(() => {
+    showUploadDone.value = false;
+    uploadTasks.value = uploadTasks.value.filter(t => t.status !== 'done');
+  }, 4000);
+};
+
+const onInlineDrop = (e) => { dragOver.value = false; if (e.dataTransfer?.files) uploadFiles(e.dataTransfer.files); };
+const onInlineFileChange = (e) => { if (e.target.files?.length) uploadFiles(e.target.files); e.target.value = ''; };
+
+// Global drag-over tracking (to show drop hint when files dragged into window)
+const onWindowDragOver = (e) => { if (e.dataTransfer?.types?.includes('Files')) dragOver.value = true; };
+const onWindowDragLeave = (e) => { if (!e.relatedTarget) dragOver.value = false; };
+const onWindowDrop = (e) => { e.preventDefault(); dragOver.value = false; if (e.dataTransfer?.files?.length) uploadFiles(e.dataTransfer.files); };
 
 // ── Rename state ──
 const rootLabel = ref(localStorage.getItem('rootLabel') || 'All media');
@@ -368,6 +485,16 @@ const formatBytes = (bytes) => {
 onMounted(async () => {
   await Promise.all([imageStore.fetchImages(1, null), folderStore.fetchFolders()]);
   totalAll.value = imageStore.total + folderStore.folders.length;
+  window.addEventListener('dragover', onWindowDragOver);
+  window.addEventListener('dragleave', onWindowDragLeave);
+  window.addEventListener('drop', onWindowDrop);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('dragover', onWindowDragOver);
+  window.removeEventListener('dragleave', onWindowDragLeave);
+  window.removeEventListener('drop', onWindowDrop);
+  if (uploadDoneTimer) clearTimeout(uploadDoneTimer);
 });
 
 const selectFolder = async (id) => {
@@ -811,6 +938,120 @@ const onUploaded = async () => {
   .loading-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* ── Inline drop zone ── */
+.inline-drop-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.625rem 1rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  user-select: none;
+}
+.inline-drop-zone:hover, .inline-drop-zone.drop-active {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+  color: var(--color-primary);
+}
+.drop-zone-icon { flex-shrink: 0; }
+
+/* ── Upload progress panel ── */
+.progress-panel {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 400;
+  width: 300px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.progress-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.progress-panel-title { font-size: 0.8125rem; font-weight: 600; }
+.progress-panel-tasks { padding: 0.625rem 0.875rem; display: flex; flex-direction: column; gap: 0.5rem; max-height: 200px; overflow-y: auto; }
+.pp-task {}
+.pp-task-row { display: flex; align-items: center; justify-content: space-between; gap: 0.375rem; margin-bottom: 0.2rem; }
+.pp-name { font-size: 0.75rem; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.pp-done { font-size: 0.75rem; color: #4ade80; font-weight: 700; flex-shrink: 0; }
+.pp-err { font-size: 0.75rem; color: var(--color-danger); font-weight: 700; flex-shrink: 0; }
+.pp-pct { font-size: 0.75rem; color: var(--color-muted); flex-shrink: 0; }
+.pp-bar { height: 3px; background: var(--color-surface-2); border-radius: 2px; overflow: hidden; }
+.pp-fill { height: 100%; background: var(--color-primary); border-radius: 2px; transition: width 0.15s; }
+.pp-fill-done { background: #4ade80; }
+.pp-fill-err { background: var(--color-danger); }
+
+/* slide-up transition */
+.slide-up-enter-active, .slide-up-leave-active { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+.slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(1rem); }
+
+/* ── Mobile FAB ── */
+.upload-fab-wrap {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .upload-fab-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.25rem;
+    z-index: 300;
+  }
+  .upload-fab {
+    width: 56px;
+    height: 56px;
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    transition: background 0.15s, transform 0.15s;
+    padding: 0;
+  }
+  .upload-fab:hover { background: var(--color-primary-hover); transform: scale(1.06); }
+  .camera-fab {
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    transition: background 0.15s;
+    padding: 0;
+    align-self: flex-end;
+  }
+  .camera-fab:hover { background: var(--color-surface-2); }
+  /* Hide header upload btn on mobile (uses FAB instead) */
+  .gallery-header .header-actions .btn-primary { display: none; }
+  /* Inline drop zone on mobile — simplified */
+  .inline-drop-zone { display: none; }
+  /* Progress panel on mobile — bottom, wider */
+  .progress-panel { right: 0.75rem; bottom: 5rem; width: calc(100vw - 1.5rem); max-width: 320px; }
 }
 </style>
 

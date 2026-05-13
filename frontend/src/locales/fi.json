@@ -51,7 +51,9 @@
     "create": "Luo",
     "items": "{n} kohde | {n} kohdetta",
     "back": "Takaisin",
-    "newSubfolder": "Uusi alikansio"
+    "newSubfolder": "Uusi alikansio",
+    "deleteFolderWarning": "Kaikki alikansiot poistetaan ja kuvat siirretään juureen.",
+    "deleteItemConfirm": "Tämä kohde poistetaan pysyvästi."
   },
   "share": {
     "title": "Jaa",
@@ -95,7 +97,8 @@
   },
   "upload": {
     "title": "Lataa mediaa",
-    "dropHint": "Pudota tiedosto tai",
+    "dropHint": "Pudota tiedostoja tai",
+    "dropHere": "Pudota ladataksesi!",
     "clickToBrowse": "selaa tiedostoja",
     "acceptedFormats": "Kuvat: JPEG, PNG, GIF, WEBP, HEIC · Videot: MP4, MOV, WEBM · max 200 MB",
     "folderLabel": "Kansio",
@@ -108,7 +111,14 @@
     "makePublic": "Tee julkiseksi",
     "cancel": "Peruuta",
     "uploading": "Ladataan…",
-    "upload": "Lataa"
+    "upload": "Lataa",
+    "addMore": "Lisää tiedostoja",
+    "fromCamera": "Ota kuva / video",
+    "filesUploaded": "tiedostoa ladattu",
+    "allComplete": "Kaikki ladattu!",
+    "close": "Valmis",
+    "fileTooLarge": "ylittää 200 MB rajan",
+    "uploadFailed": "Lataus epäonnistui. Yritä uudelleen."
   },
   "media": {
     "moveToFolder": "Siirrä kansioon",
