@@ -163,7 +163,11 @@
     "checking": "Checking…",
     "viewImages": "View images",
     "sharedAlbum": "Shared album",
-    "imageCount": "{n} image | {n} images"
+    "imageCount": "{n} image | {n} images",
+    "tvMode": "TV Slideshow",
+    "exitTV": "Exit TV mode",
+    "prev": "Previous",
+    "next": "Next"
   },
   "confirm": {
     "ok": "OK",

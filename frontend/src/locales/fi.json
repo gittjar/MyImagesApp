@@ -163,7 +163,11 @@
     "checking": "Tarkistetaan…",
     "viewImages": "Näytä kuvat",
     "sharedAlbum": "Jaettu albumi",
-    "imageCount": "{n} kuva | {n} kuvaa"
+    "imageCount": "{n} kuva | {n} kuvaa",
+    "tvMode": "TV-kuvaesitys",
+    "exitTV": "Poistu TV-tilasta",
+    "prev": "Edellinen",
+    "next": "Seuraava"
   },
   "confirm": {
     "ok": "OK",
