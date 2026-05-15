@@ -53,7 +53,8 @@
     "back": "Takaisin",
     "newSubfolder": "Uusi alikansio",
     "deleteFolderWarning": "Kaikki alikansiot poistetaan ja kuvat siirretään juureen.",
-    "deleteItemConfirm": "Tämä kohde poistetaan pysyvästi."
+    "deleteItemConfirm": "Tämä kohde poistetaan pysyvästi.",
+    "dragToReorder": "Raahaa järjestystä muuttaaksesi"
   },
   "share": {
     "title": "Jaa",
@@ -124,7 +125,10 @@
     "moveToFolder": "Siirrä kansioon",
     "root": "Juuri (ei kansiota)",
     "share": "Jaa",
-    "delete": "Poista"
+    "delete": "Poista",
+    "addDescription": "Lisää kuvaus…",
+    "editDescription": "Muokkaa kuvausta",
+    "descriptionPlaceholder": "Kuvaile tätä kuvaa…"
   },
   "admin": {
     "title": "Hallintapaneeli",

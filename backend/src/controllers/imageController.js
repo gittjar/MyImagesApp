@@ -222,4 +222,4 @@ const reorderImages = async (req, res) => {
   }
 };
 
-module.exports = { uploadImage, getImages, deleteImage, updateImage, reorderImages, reorderImages };
+module.exports = { uploadImage, getImages, deleteImage, updateImage, reorderImages };

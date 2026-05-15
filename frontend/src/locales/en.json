@@ -53,7 +53,8 @@
     "back": "Back",
     "newSubfolder": "New subfolder",
     "deleteFolderWarning": "All subfolders will be removed and images moved to root.",
-    "deleteItemConfirm": "This item will be permanently deleted."
+    "deleteItemConfirm": "This item will be permanently deleted.",
+    "dragToReorder": "Drag to reorder"
   },
   "share": {
     "title": "Share",
@@ -124,7 +125,10 @@
     "moveToFolder": "Move to folder",
     "root": "Root (no folder)",
     "share": "Share",
-    "delete": "Delete"
+    "delete": "Delete",
+    "addDescription": "Add description…",
+    "editDescription": "Edit description",
+    "descriptionPlaceholder": "Describe this image…"
   },
   "admin": {
     "title": "Admin Panel",

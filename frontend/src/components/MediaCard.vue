@@ -1,5 +1,5 @@
 <template>
-  <div class="card" @click="openLightbox">
+  <div class="card" :data-image-id="item._id" @click="openLightbox">
     <div class="thumb-wrap">
       <!-- Video thumbnail -->
       <div v-if="item.mediaType === 'video'" class="video-thumb">
@@ -10,7 +10,12 @@
       <img v-else :src="item.url" :alt="item.originalName" loading="lazy" />
     </div>
 
-    <!-- Name overlay at bottom -->
+    <!-- Description ribbon — always visible when description is set -->
+    <div v-if="item.description" class="desc-ribbon">
+      <span class="desc-ribbon-text">{{ item.description }}</span>
+    </div>
+
+    <!-- Name/size overlay on hover -->
     <div class="card-overlay">
       <p class="name" :title="item.originalName">{{ item.originalName }}</p>
       <p class="meta">{{ formatSize(item.size) }}</p>
@@ -64,7 +69,25 @@
         <!-- Info panel -->
         <aside class="lb-panel">
           <p class="lb-filename">{{ item.originalName }}</p>
-          <p v-if="item.description" class="lb-desc">{{ item.description }}</p>
+
+          <!-- Editable description -->
+          <div class="lb-desc-wrap">
+            <textarea
+              v-if="editingDesc"
+              class="lb-desc-input"
+              v-model="descDraft"
+              rows="3"
+              :placeholder="t('media.descriptionPlaceholder')"
+              @blur="saveDesc"
+              @keydown.enter.exact.prevent="saveDesc"
+              @keydown.esc="editingDesc = false"
+              autofocus
+            />
+            <div v-else class="lb-desc-row" @click="startEditDesc">
+              <p :class="['lb-desc', !item.description && 'lb-desc-empty']">{{ item.description || t('media.addDescription') }}</p>
+              <button class="lb-edit-btn" type="button" @click.stop="startEditDesc" :title="t('media.editDescription')"><Pencil :size="13" /></button>
+            </div>
+          </div>
           <div v-if="item.tags?.length" class="lb-tags">
             <span v-for="tag in item.tags" :key="tag" class="lb-tag">{{ tag }}</span>
           </div>
@@ -170,7 +193,8 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Play, FolderInput, Images, Folder, Share2, Trash2, X } from 'lucide-vue-next';
+import { Play, FolderInput, Images, Folder, Share2, Trash2, X, Pencil } from 'lucide-vue-next';
+import { useImagesStore } from '../stores/images';
 
 const { t } = useI18n();
 
@@ -180,9 +204,25 @@ const props = defineProps({
 });
 const emit = defineEmits(['delete', 'move', 'share']);
 
+const imageStore = useImagesStore();
+
 const lightbox = ref(false);
 const lightboxEl = ref(null);
 const showMoveMenu = ref(false);
+
+// Description editing
+const editingDesc = ref(false);
+const descDraft = ref('');
+const startEditDesc = () => {
+  descDraft.value = props.item.description || '';
+  editingDesc.value = true;
+};
+const saveDesc = async () => {
+  editingDesc.value = false;
+  const val = descDraft.value.trim();
+  if (val === (props.item.description || '')) return;
+  await imageStore.updateImage(props.item._id, { description: val });
+};
 
 // Swipe-to-close for mobile
 let _swipeStartX = 0;
@@ -314,6 +354,27 @@ const formatExposureProgram = (v) => EXPOSURE_PROGRAM[v] ?? String(v);
 }
 .card:hover .play-overlay { background: rgba(0,0,0,0.2); }
 
+/* Description ribbon — thin black band always visible when description set */
+.desc-ribbon {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.275rem 0.5rem;
+  background: rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 2;
+}
+.desc-ribbon-text {
+  display: block;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Name/meta gradient overlay at the bottom */
 .card-overlay {
   position: absolute;
@@ -325,6 +386,7 @@ const formatExposureProgram = (v) => EXPOSURE_PROGRAM[v] ?? String(v);
   color: #fff;
   opacity: 0;
   transition: opacity 0.2s;
+  z-index: 3;
 }
 .card:hover .card-overlay { opacity: 1; }
 .name { font-size: 0.775rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -481,11 +543,56 @@ const formatExposureProgram = (v) => EXPOSURE_PROGRAM[v] ?? String(v);
   line-height: 1.4;
 }
 
-.lb-desc {
-  font-size: 0.8125rem;
-  color: #aaa;
-  line-height: 1.5;
+/* Editable description in lightbox */
+.lb-desc-wrap { margin: 0.35rem 0 0.125rem; }
+
+.lb-desc-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  cursor: pointer;
+  border-radius: 5px;
+  padding: 0.2rem 0.3rem;
+  margin: -0.2rem -0.3rem;
+  transition: background 0.15s;
 }
+.lb-desc-row:hover { background: rgba(255,255,255,0.08); }
+
+.lb-desc { font-size: 0.8125rem; color: #d1d5db; line-height: 1.45; flex: 1; }
+.lb-desc-empty { color: rgba(255,255,255,0.35); font-style: italic; }
+
+.lb-edit-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  padding: 0.1rem;
+  cursor: pointer;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  line-height: 1;
+}
+.lb-desc-row:hover .lb-edit-btn { opacity: 1; color: rgba(255,255,255,0.7); }
+.lb-edit-btn:hover { color: #fff; }
+
+.lb-desc-input {
+  width: 100%;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  padding: 0.45rem 0.625rem;
+  outline: none;
+  resize: vertical;
+  min-height: 58px;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.lb-desc-input:focus { border-color: rgba(255,255,255,0.6); }
 
 .lb-tags { display: flex; flex-wrap: wrap; gap: 0.375rem; }
 .lb-tag {
