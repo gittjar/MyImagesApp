@@ -25,8 +25,13 @@
           <button
             v-else
             class="folder-item"
-            :class="{ active: imageStore.activeFolder === null }"
+            :class="{ active: imageStore.activeFolder === null, 'sidebar-folder-drop-over': sidebarDragOver === '__root__' && isDraggingMedia }"
+            data-folder-id="__root__"
             @click="selectFolder(null)"
+            @dragenter.prevent="isDraggingMedia && (sidebarDragOver = '__root__')"
+            @dragleave="(e) => { if (!e.currentTarget.contains(e.relatedTarget)) sidebarDragOver = null }"
+            @dragover.prevent
+            @drop.prevent="isDraggingMedia && onSidebarDrop('__root__', $event)"
           >
             <Images :size="16" class="fi" />
             <span class="folder-name">{{ rootLabel }}</span>
@@ -51,11 +56,13 @@
               v-else
               class="folder-item"
               :class="{ active: imageStore.activeFolder === f._id, 'sidebar-folder-drop-over': sidebarDragOver === f._id && isDraggingMedia }"
+              :data-folder-id="f._id"
               @click="selectFolder(f._id)"
               :style="{ paddingLeft: `${0.625 + depth * 0.875}rem` }"
-              @dragover.prevent="isDraggingMedia && (sidebarDragOver = f._id)"
-              @dragleave="sidebarDragOver = null"
-              @drop.prevent="isDraggingMedia && onDropImageToFolder(f)"
+              @dragenter.prevent="isDraggingMedia && (sidebarDragOver = f._id)"
+              @dragleave="(e) => { if (!e.currentTarget.contains(e.relatedTarget)) sidebarDragOver = null }"
+              @dragover.prevent
+              @drop.prevent="isDraggingMedia && onSidebarDrop(f._id, $event)"
             >
               <Folder :size="16" class="fi" />
               <span class="folder-name">{{ f.name }}</span>
@@ -180,27 +187,35 @@
             </div>
           </div>
 
-          <!-- Draggable image grid -->
-          <draggable
+          <!-- Image grid (native HTML5 drag-to-reorder) -->
+          <div
             v-if="imageStore.images.length"
-            v-model="draggableImages"
-            tag="div"
             class="image-grid"
-            item-key="_id"
-            :animation="180"
-            ghost-class="drag-ghost"
-            chosen-class="drag-chosen"
-            handle=".drag-handle"
-            @start="onDragStart"
-            @end="onDragEnd"
+            @dragover.prevent
+            @drop.prevent="onDropItem($event)"
           >
-            <template #item="{ element }">
-              <div class="drag-item">
+            <template v-for="slot in gridSlots" :key="slot.type === 'drop' ? '__drop__' : slot.item._id">
+              <!-- Drop zone indicator -->
+              <div v-if="slot.type === 'drop'" class="drop-zone-slot">
+                <ImagePlus :size="28" class="drop-zone-icon" />
+                <span>Pudota tähän</span>
+              </div>
+              <!-- Media item -->
+              <div
+                v-else
+                class="drag-item"
+                :class="{ 'drag-item-dragging': dragSrcIdx === slot.origIdx }"
+                draggable="true"
+                @dragstart="onDragStart($event, slot.origIdx)"
+                @dragover.prevent="onDragOverItem($event, slot.origIdx)"
+                @dragend="onDragEnd"
+                @drop.prevent="onDropItem($event)"
+              >
                 <div class="drag-handle" :title="t('gallery.dragToReorder')">
                   <GripVertical :size="16" />
                 </div>
                 <MediaCard
-                  :item="element"
+                  :item="slot.item"
                   :folders="folderStore.folders"
                   @delete="handleDelete"
                   @move="handleMove"
@@ -208,7 +223,7 @@
                 />
               </div>
             </template>
-          </draggable>
+          </div>
         </template>
 
         <div v-if="imageStore.pages > 1" class="pagination">
@@ -294,8 +309,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import draggable from 'vuedraggable';
-import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload, ChevronLeft, Camera, GripVertical } from 'lucide-vue-next';
+import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload, ChevronLeft, Camera, GripVertical, ImagePlus } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 import { useFolderStore } from '../stores/folders';
 import { useConfirm } from '../composables/useConfirm';
@@ -475,25 +489,79 @@ const parentFolderLabel = computed(() => {
   return folderStore.folders.find(f => f._id === par.toString())?.name ?? rootLabel.value;
 });
 
-// v-model binding for vuedraggable that updates the Pinia store
-const draggableImages = computed({
-  get: () => imageStore.images,
-  set: (val) => { imageStore.images = val; }
+// ── Native HTML5 drag-to-reorder ──
+const dragSrcIdx = ref(null);   // origIdx of the item being dragged
+const dropInsertIdx = ref(null); // insertion index shown as visual drop zone
+
+// gridSlots: images array with an optional { type: 'drop' } slot inserted
+const gridSlots = computed(() => {
+  const slots = imageStore.images.map((item, origIdx) => ({ type: 'item', item, origIdx }));
+  const src = dragSrcIdx.value;
+  const ins = dropInsertIdx.value;
+  if (src === null || ins === null || ins === src || ins === src + 1) return slots;
+  slots.splice(ins, 0, { type: 'drop' });
+  return slots;
 });
 
-const onDragStart = (evt) => {
+const onDragStart = (e, idx) => {
+  dragSrcIdx.value = idx;
+  draggingImage.value = imageStore.images[idx] ?? null;
   isDraggingMedia.value = true;
-  draggingImage.value = imageStore.images[evt.oldIndex] ?? null;
+  e.dataTransfer.effectAllowed = 'move';
+  document.body.classList.add('is-dragging-media');
 };
 
-const onDragEnd = (evt) => {
+const onDragOverItem = (e, idx) => {
+  e.preventDefault();
+  if (dragSrcIdx.value === null) return;
+  folderDragOver.value = null;
+  const rect = e.currentTarget.getBoundingClientRect();
+  dropInsertIdx.value = e.clientX < rect.left + rect.width / 2 ? idx : idx + 1;
+};
+
+const onDragEnd = () => {
+  dragSrcIdx.value = null;
+  dropInsertIdx.value = null;
   isDraggingMedia.value = false;
+  draggingImage.value = null;
   folderDragOver.value = null;
   sidebarDragOver.value = null;
-  // Only trigger reorder when dropped in the same list
-  if (evt.from === evt.to) {
-    draggingImage.value = null;
-    imageStore.reorderImages(imageStore.images.map(img => img._id));
+  document.body.classList.remove('is-dragging-media');
+};
+
+const onDropItem = async (e) => {
+  e.preventDefault();
+  const src = dragSrcIdx.value;
+  const ins = dropInsertIdx.value;
+  onDragEnd();
+  if (src === null || ins === null || ins === src || ins === src + 1) return;
+  const items = [...imageStore.images];
+  const [moved] = items.splice(src, 1);
+  const adjustedIns = ins > src ? ins - 1 : ins;
+  items.splice(adjustedIns, 0, moved);
+  imageStore.images = items;
+  await imageStore.reorderImages(items.map(img => img._id));
+};
+
+const onSidebarDrop = async (folderId, e) => {
+  e.preventDefault();
+  if (!isDraggingMedia.value) return;
+  const image = draggingImage.value; // save before onDragEnd() resets it
+  onDragEnd();
+  if (!image) return;
+  if (folderId === '__root__') {
+    await imageStore.updateImage(image._id, { folder: null });
+    imageStore.images = imageStore.images.filter(img => img._id !== image._id);
+    imageStore.total = Math.max(0, imageStore.total - 1);
+    await folderStore.fetchFolders();
+  } else {
+    const folder = folderStore.folders.find(f => f._id === folderId);
+    if (folder) {
+      await imageStore.updateImage(image._id, { folder: folder._id });
+      imageStore.images = imageStore.images.filter(img => img._id !== image._id);
+      imageStore.total = Math.max(0, imageStore.total - 1);
+      await folderStore.fetchFolders();
+    }
   }
 };
 
@@ -809,12 +877,27 @@ const onUploaded = async () => {
   transform: scale(1.04);
 }
 
-/* drag-item: transparent wrapper so sortablejs has a single root element per slot */
-.drag-item {
-  position: relative;
+/* Global grabbing cursor while a media card is being dragged */
+.is-dragging-media,
+.is-dragging-media * {
+  cursor: grabbing !important;
 }
 
-/* Drag handle — visible on hover in top-left corner */
+/* drag-item: wrapper with grab cursor */
+.drag-item {
+  position: relative;
+  aspect-ratio: 1;
+  cursor: grab;
+}
+
+.drag-item:active { cursor: grabbing; }
+
+/* Faded state on the item being dragged */
+.drag-item-dragging {
+  opacity: 0.35;
+}
+
+/* Drag handle — visible on hover, visual only (pointer-events: none) */
 .drag-handle {
   position: absolute;
   top: 6px;
@@ -830,35 +913,51 @@ const onUploaded = async () => {
   color: rgba(255,255,255,0.85);
   opacity: 0;
   transition: opacity 0.15s;
-  cursor: grab;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .drag-item:hover .drag-handle { opacity: 1; }
-.drag-item:active .drag-handle { cursor: grabbing; }
-
-/* Drag ghost (placeholder that stays behind while dragging) */
-.drag-ghost {
-  opacity: 0.35;
-  border-radius: var(--radius);
-}
-
-/* Chosen (currently grabbed card) - applied to the wrapper */
-.drag-chosen {
-  z-index: 10;
-  cursor: grabbing;
-}
-
-.drag-chosen :deep(.card) {
-  box-shadow: 0 8px 28px rgba(0,0,0,0.45);
-  transform: scale(1.04);
-}
 
 /* Sidebar folder drop highlight */
 .sidebar-folder-drop-over {
-  background: color-mix(in srgb, var(--color-primary) 18%, transparent) !important;
+  background: color-mix(in srgb, var(--color-primary) 22%, transparent) !important;
   color: var(--color-primary) !important;
+  border-radius: 8px;
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
+
+/* Arrow pointer next to folder name when it’s a drop target */
+.sidebar-folder-drop-over .folder-name::before {
+  content: '→ ';
+  font-weight: 700;
+}
+/* Drop zone slot — visual insert-here indicator */
+.drop-zone-slot {
+  position: relative;
+  aspect-ratio: 1;
+  border: 2.5px dashed var(--color-primary);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  color: var(--color-primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  animation: ghost-pulse 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes ghost-pulse {
+  from { opacity: 0.5; }
+  to   { opacity: 1; box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 20%, transparent); }
+}
+
 .folder-tile-icon { display: flex; }
 .icon-btn { display: inline-flex; align-items: center; gap: 0.375rem; }
 .folder-tile-name {
