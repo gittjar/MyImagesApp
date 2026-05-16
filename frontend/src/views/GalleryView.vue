@@ -40,8 +40,15 @@
           </button>
 
           <!-- Folder tree (indented by depth) -->
-          <template v-for="{ folder: f, depth } in flatFolderTree" :key="f._id">
-            <div v-if="editingFolderId === f._id" class="folder-item-edit" :style="{ paddingLeft: `${0.625 + depth * 0.875}rem` }">
+          <template v-for="{ folder: f, depth, isLast, ancestorLines, hasChildren, isCollapsed } in flatFolderTree" :key="f._id">
+            <div v-if="editingFolderId === f._id" class="folder-item-edit">
+              <span class="tree-guide">
+                <template v-if="depth > 0">
+                  <span v-for="d in depth - 1" :key="d" class="tg-vert" :class="{ 'tg-open': ancestorLines[d - 1] }" />
+                  <span class="tg-branch" :class="{ 'tg-last': isLast }" />
+                </template>
+                <span class="tree-spacer" />
+              </span>
               <Folder :size="16" class="fi" />
               <input
                 class="name-input"
@@ -58,12 +65,21 @@
               :class="{ active: imageStore.activeFolder === f._id, 'sidebar-folder-drop-over': sidebarDragOver === f._id && isDraggingMedia }"
               :data-folder-id="f._id"
               @click="selectFolder(f._id)"
-              :style="{ paddingLeft: `${0.625 + depth * 0.875}rem` }"
               @dragenter.prevent="isDraggingMedia && (sidebarDragOver = f._id)"
               @dragleave="(e) => { if (!e.currentTarget.contains(e.relatedTarget)) sidebarDragOver = null }"
               @dragover.prevent
               @drop.prevent="isDraggingMedia && onSidebarDrop(f._id, $event)"
             >
+              <span class="tree-guide">
+                <template v-if="depth > 0">
+                  <span v-for="d in depth - 1" :key="d" class="tg-vert" :class="{ 'tg-open': ancestorLines[d - 1] }" />
+                  <span class="tg-branch" :class="{ 'tg-last': isLast }" />
+                </template>
+                <button v-if="hasChildren" class="tree-toggle" @click.stop="toggleCollapse(f._id)">
+                  <ChevronRight :size="11" :class="['toggle-icon', { expanded: !isCollapsed }]" />
+                </button>
+                <span v-else class="tree-spacer" />
+              </span>
               <Folder :size="16" class="fi" />
               <span class="folder-name">{{ f.name }}</span>
               <span class="folder-count">{{ f.count }}</span>
@@ -127,7 +143,7 @@
             <span class="count">{{ imageStore.total }}</span>
           </h2>
           <div class="header-actions">
-            <button v-if="imageStore.activeFolder" class="btn-ghost icon-btn" @click="openNewSubfolder"><FolderPlus :size="14" /> {{ t('gallery.newFolder') }}</button>
+            <button class="btn-ghost icon-btn" @click="openNewSubfolder"><FolderPlus :size="14" /> {{ t('gallery.newFolder') }}</button>
             <button v-if="imageStore.activeFolder" class="btn-ghost icon-btn" @click="openFolderShare"><Link2 :size="14" /> {{ t('gallery.shareFolder') }}</button>
             <button class="btn-primary icon-btn" @click="showUpload = true"><Upload :size="14" /> {{ t('gallery.upload') }}</button>
           </div>
@@ -323,7 +339,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload, ChevronLeft, Camera, GripVertical, ImagePlus, Check, AlertTriangle } from 'lucide-vue-next';
+import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload, ChevronLeft, ChevronRight, Camera, GripVertical, ImagePlus, Check, AlertTriangle } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 import { useFolderStore } from '../stores/folders';
 import { useConfirm } from '../composables/useConfirm';
@@ -491,13 +507,29 @@ const storagePercent = computed(() =>
 );
 
 // ── Folder tree (flat list with depth for sidebar) ──
+const collapsedFolders = ref(new Set());
+const toggleCollapse = (id) => {
+  const s = new Set(collapsedFolders.value);
+  if (s.has(id)) s.delete(id); else s.add(id);
+  collapsedFolders.value = s;
+};
+
 const flatFolderTree = computed(() => {
-  const build = (parentId, depth) =>
-    folderStore.folders
+  const allFolders = folderStore.folders;
+  const childIds = new Set(allFolders.filter(f => f.parent).map(f => f.parent.toString()));
+  const build = (parentId, depth, ancestorLines) => {
+    const children = allFolders
       .filter(f => (f.parent ? f.parent.toString() : null) === (parentId ? parentId.toString() : null))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .flatMap(f => [{ folder: f, depth }, ...build(f._id, depth + 1)]);
-  return build(null, 0);
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return children.flatMap((f, idx) => {
+      const isLast = idx === children.length - 1;
+      const hasChildren = childIds.has(f._id.toString());
+      const isCollapsed = collapsedFolders.value.has(f._id);
+      const node = { folder: f, depth, isLast, ancestorLines, hasChildren, isCollapsed };
+      return [node, ...(isCollapsed ? [] : build(f._id, depth + 1, [...ancestorLines, !isLast]))];
+    });
+  };
+  return build(null, 0, []);
 });
 
 // Direct children of current view (root → top-level folders, folder → subfolders)
@@ -838,6 +870,33 @@ const onUploaded = async () => {
   padding: 0.2rem 0.4rem;
   outline: none;
 }
+
+/* ── Sidebar tree lines ── */
+.tree-guide { display: flex; align-self: stretch; flex-shrink: 0; }
+.tg-vert, .tg-branch { width: 0.75rem; flex-shrink: 0; align-self: stretch; position: relative; }
+.tg-vert.tg-open::before {
+  content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
+  width: 1px; background: var(--color-border); transform: translateX(-50%);
+}
+.tg-branch::before {
+  content: ''; position: absolute; left: 50%; top: 0; bottom: 50%;
+  width: 1px; background: var(--color-border); transform: translateX(-50%);
+}
+.tg-branch:not(.tg-last)::before { bottom: 0; }
+.tg-branch::after {
+  content: ''; position: absolute; left: 50%; right: 0; top: 50%;
+  height: 1px; background: var(--color-border); transform: translateY(-50%);
+}
+.tree-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 1rem; height: 1rem; flex-shrink: 0;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--color-muted); border-radius: 3px;
+}
+.tree-toggle:hover { background: var(--color-surface-2); color: var(--color-text); }
+.toggle-icon { transition: transform 0.15s; }
+.toggle-icon.expanded { transform: rotate(90deg); }
+.tree-spacer { width: 1rem; flex-shrink: 0; }
 
 /* ── Header rename ── */
 .header-title-edit { flex: 1; }
