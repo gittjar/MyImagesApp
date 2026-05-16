@@ -42,33 +42,73 @@
       v-if="lightbox"
       class="lightbox"
       @click.self="lightbox = false"
-      @keydown.esc="lightbox = false"
+      @keydown="onLightboxKeydown"
       @touchstart.passive="onSwipeStart"
       @touchend.passive="onSwipeEnd"
       tabindex="-1"
       ref="lightboxEl"
     >
-      <button class="lb-close" @click="lightbox = false" aria-label="Close">
-        <X :size="20" />
-      </button>
+      <!-- Slideshow progress bar -->
+      <div v-if="slideshowActive && currentItem.mediaType !== 'video'" class="lb-progress-bar">
+        <div class="lb-progress-fill" :key="currentIdx" />
+      </div>
+
+      <!-- Top-right controls -->
+      <div class="lb-topbar">
+        <span v-if="items.length > 1" class="lb-counter">{{ currentIdx + 1 }} / {{ items.length }}</span>
+        <button v-if="items.length > 1" class="lb-topbar-btn" @click="toggleSlideshow" :title="slideshowActive ? 'Pysäytä esitys (välilyönti)' : 'Käynnistä esitys (välilyönti)'">
+          <Pause v-if="slideshowActive" :size="16" />
+          <Play v-else :size="16" />
+        </button>
+        <button class="lb-topbar-btn" @click="toggleFullscreen" :aria-label="isFullscreen ? 'Poistu koko näytöltä' : 'Koko näyttö'">
+          <Minimize2 v-if="isFullscreen" :size="16" />
+          <Maximize2 v-else :size="16" />
+        </button>
+        <button class="lb-topbar-btn" @click="lightbox = false" aria-label="Sulje">
+          <X :size="16" />
+        </button>
+      </div>
 
       <div class="lb-layout">
         <!-- Media side -->
         <div class="lb-media-wrap">
+          <!-- Prev / Next arrows -->
+          <button v-if="items.length > 1" class="lb-arrow lb-arrow-prev" @click.stop="prevItem" aria-label="Edellinen">
+            <ChevronLeft :size="28" />
+          </button>
+          <button v-if="items.length > 1" class="lb-arrow lb-arrow-next" @click.stop="nextItem" aria-label="Seuraava">
+            <ChevronRight :size="28" />
+          </button>
+
           <video
-            v-if="item.mediaType === 'video'"
-            :src="item.url"
+            v-if="currentItem.mediaType === 'video'"
+            :src="currentItem.url"
+            :key="'v-' + currentIdx"
             controls
             autoplay
             class="lb-video"
             preload="metadata"
+            @ended="onVideoEnded"
           />
-          <img v-else :src="item.url" :alt="item.originalName" class="lb-img" />
+          <img v-else :src="currentItem.url" :alt="currentItem.originalName" class="lb-img" />
+
+          <!-- Info badge pills overlaid on media -->
+          <div v-if="currentItem.description || currentItem.exif?.DateTimeOriginal || currentItem.exif?.latitude !== undefined" class="lb-badges">
+            <span v-if="currentItem.description" class="lb-badge lb-badge-name">
+              <Tag :size="11" />{{ currentItem.description }}
+            </span>
+            <span v-if="currentItem.exif?.DateTimeOriginal" class="lb-badge lb-badge-date">
+              <Calendar :size="11" />{{ formatExifDate(currentItem.exif.DateTimeOriginal) }}
+            </span>
+            <a v-if="currentItem.exif?.latitude !== undefined" :href="mapsUrl" target="_blank" rel="noopener noreferrer" class="lb-badge lb-badge-loc" @click.stop>
+              <MapPin :size="11" />{{ formatGPS(currentItem.exif.latitude, currentItem.exif.longitude) }}
+            </a>
+          </div>
         </div>
 
         <!-- Info panel -->
         <aside class="lb-panel">
-          <p class="lb-filename">{{ item.originalName }}</p>
+          <p class="lb-filename">{{ currentItem.originalName }}</p>
 
           <!-- Editable description -->
           <div class="lb-desc-wrap">
@@ -80,16 +120,16 @@
               :placeholder="t('media.descriptionPlaceholder')"
               @blur="saveDesc"
               @keydown.enter.exact.prevent="saveDesc"
-              @keydown.esc="editingDesc = false"
+              @keydown.esc.stop="editingDesc = false"
               autofocus
             />
             <div v-else class="lb-desc-row" @click="startEditDesc">
-              <p :class="['lb-desc', !item.description && 'lb-desc-empty']">{{ item.description || t('media.addDescription') }}</p>
+              <p :class="['lb-desc', !currentItem.description && 'lb-desc-empty']">{{ currentItem.description || t('media.addDescription') }}</p>
               <button class="lb-edit-btn" type="button" @click.stop="startEditDesc" :title="t('media.editDescription')"><Pencil :size="13" /></button>
             </div>
           </div>
-          <div v-if="item.tags?.length" class="lb-tags">
-            <span v-for="tag in item.tags" :key="tag" class="lb-tag">{{ tag }}</span>
+          <div v-if="currentItem.tags?.length" class="lb-tags">
+            <span v-for="tag in currentItem.tags" :key="tag" class="lb-tag">{{ tag }}</span>
           </div>
 
           <!-- File info -->
@@ -97,86 +137,86 @@
             <div class="lb-group-label">Tiedosto</div>
             <div class="lb-row">
               <span class="lb-key">Koko</span>
-              <span class="lb-val">{{ formatSize(item.size) }}</span>
+              <span class="lb-val">{{ formatSize(currentItem.size) }}</span>
             </div>
-            <div v-if="item.width && item.height" class="lb-row">
+            <div v-if="currentItem.width && currentItem.height" class="lb-row">
               <span class="lb-key">Resoluutio</span>
-              <span class="lb-val">{{ item.width }} × {{ item.height }} px</span>
+              <span class="lb-val">{{ currentItem.width }} × {{ currentItem.height }} px</span>
             </div>
             <div class="lb-row">
               <span class="lb-key">Ladattu</span>
-              <span class="lb-val">{{ formatDate(item.createdAt) }}</span>
+              <span class="lb-val">{{ formatDate(currentItem.createdAt) }}</span>
             </div>
           </div>
 
           <!-- EXIF -->
-          <template v-if="item.exif && item.mediaType !== 'video'">
+          <template v-if="currentItem.exif && currentItem.mediaType !== 'video'">
             <div class="lb-group">
               <div class="lb-group-label">EXIF</div>
-              <div v-if="item.exif.DateTimeOriginal" class="lb-row">
+              <div v-if="currentItem.exif.DateTimeOriginal" class="lb-row">
                 <span class="lb-key">Otettu</span>
-                <span class="lb-val">{{ formatExifDate(item.exif.DateTimeOriginal) }}</span>
+                <span class="lb-val">{{ formatExifDate(currentItem.exif.DateTimeOriginal) }}</span>
               </div>
-              <div v-if="item.exif.Make || item.exif.Model" class="lb-row">
+              <div v-if="currentItem.exif.Make || currentItem.exif.Model" class="lb-row">
                 <span class="lb-key">Kamera</span>
-                <span class="lb-val">{{ [item.exif.Make, item.exif.Model].filter(Boolean).join(' ') }}</span>
+                <span class="lb-val">{{ [currentItem.exif.Make, currentItem.exif.Model].filter(Boolean).join(' ') }}</span>
               </div>
-              <div v-if="item.exif.LensModel" class="lb-row">
+              <div v-if="currentItem.exif.LensModel" class="lb-row">
                 <span class="lb-key">Objektiivi</span>
-                <span class="lb-val">{{ item.exif.LensModel }}</span>
+                <span class="lb-val">{{ currentItem.exif.LensModel }}</span>
               </div>
-              <div v-if="item.exif.FNumber" class="lb-row">
+              <div v-if="currentItem.exif.FNumber" class="lb-row">
                 <span class="lb-key">Aukko</span>
-                <span class="lb-val">f/{{ item.exif.FNumber }}</span>
+                <span class="lb-val">f/{{ currentItem.exif.FNumber }}</span>
               </div>
-              <div v-if="item.exif.ExposureTime" class="lb-row">
+              <div v-if="currentItem.exif.ExposureTime" class="lb-row">
                 <span class="lb-key">Suljinaika</span>
-                <span class="lb-val">{{ formatShutter(item.exif.ExposureTime) }}</span>
+                <span class="lb-val">{{ formatShutter(currentItem.exif.ExposureTime) }}</span>
               </div>
-              <div v-if="item.exif.ISO" class="lb-row">
+              <div v-if="currentItem.exif.ISO" class="lb-row">
                 <span class="lb-key">ISO</span>
-                <span class="lb-val">{{ item.exif.ISO }}</span>
+                <span class="lb-val">{{ currentItem.exif.ISO }}</span>
               </div>
-              <div v-if="item.exif.FocalLength" class="lb-row">
+              <div v-if="currentItem.exif.FocalLength" class="lb-row">
                 <span class="lb-key">Polttoväli</span>
-                <span class="lb-val">{{ Number(item.exif.FocalLength).toFixed(1) }} mm</span>
+                <span class="lb-val">{{ Number(currentItem.exif.FocalLength).toFixed(1) }} mm</span>
               </div>
-              <div v-if="item.exif.Flash !== undefined && item.exif.Flash !== null" class="lb-row">
+              <div v-if="currentItem.exif.Flash !== undefined && currentItem.exif.Flash !== null" class="lb-row">
                 <span class="lb-key">Salama</span>
-                <span class="lb-val">{{ formatFlash(item.exif.Flash) }}</span>
+                <span class="lb-val">{{ formatFlash(currentItem.exif.Flash) }}</span>
               </div>
-              <div v-if="item.exif.FocalLengthIn35mmFormat" class="lb-row">
+              <div v-if="currentItem.exif.FocalLengthIn35mmFormat" class="lb-row">
                 <span class="lb-key">35mm vast.</span>
-                <span class="lb-val">{{ item.exif.FocalLengthIn35mmFormat }} mm</span>
+                <span class="lb-val">{{ currentItem.exif.FocalLengthIn35mmFormat }} mm</span>
               </div>
-              <div v-if="item.exif.ExposureBiasValue !== undefined && item.exif.ExposureBiasValue !== 0" class="lb-row">
+              <div v-if="currentItem.exif.ExposureBiasValue !== undefined && currentItem.exif.ExposureBiasValue !== 0" class="lb-row">
                 <span class="lb-key">Korjaus</span>
-                <span class="lb-val">{{ item.exif.ExposureBiasValue > 0 ? '+' : '' }}{{ Number(item.exif.ExposureBiasValue).toFixed(1) }} EV</span>
+                <span class="lb-val">{{ currentItem.exif.ExposureBiasValue > 0 ? '+' : '' }}{{ Number(currentItem.exif.ExposureBiasValue).toFixed(1) }} EV</span>
               </div>
-              <div v-if="item.exif.WhiteBalance !== undefined" class="lb-row">
+              <div v-if="currentItem.exif.WhiteBalance !== undefined" class="lb-row">
                 <span class="lb-key">Valkotasapaino</span>
-                <span class="lb-val">{{ item.exif.WhiteBalance === 0 ? 'Auto' : 'Manuaali' }}</span>
+                <span class="lb-val">{{ currentItem.exif.WhiteBalance === 0 ? 'Auto' : 'Manuaali' }}</span>
               </div>
-              <div v-if="item.exif.MeteringMode !== undefined" class="lb-row">
+              <div v-if="currentItem.exif.MeteringMode !== undefined" class="lb-row">
                 <span class="lb-key">Mittaus</span>
-                <span class="lb-val">{{ formatMeteringMode(item.exif.MeteringMode) }}</span>
+                <span class="lb-val">{{ formatMeteringMode(currentItem.exif.MeteringMode) }}</span>
               </div>
-              <div v-if="item.exif.ExposureProgram !== undefined" class="lb-row">
+              <div v-if="currentItem.exif.ExposureProgram !== undefined" class="lb-row">
                 <span class="lb-key">Ohjelma</span>
-                <span class="lb-val">{{ formatExposureProgram(item.exif.ExposureProgram) }}</span>
+                <span class="lb-val">{{ formatExposureProgram(currentItem.exif.ExposureProgram) }}</span>
               </div>
             </div>
 
             <!-- GPS -->
-            <div v-if="item.exif.latitude !== undefined" class="lb-group">
+            <div v-if="currentItem.exif.latitude !== undefined" class="lb-group">
               <div class="lb-group-label">Sijainti</div>
               <div class="lb-row">
                 <span class="lb-key">Koordinaatit</span>
-                <span class="lb-val">{{ formatGPS(item.exif.latitude, item.exif.longitude) }}</span>
+                <span class="lb-val">{{ formatGPS(currentItem.exif.latitude, currentItem.exif.longitude) }}</span>
               </div>
-              <div v-if="item.exif.GPSAltitude !== undefined" class="lb-row">
+              <div v-if="currentItem.exif.GPSAltitude !== undefined" class="lb-row">
                 <span class="lb-key">Korkeus</span>
-                <span class="lb-val">{{ Math.round(item.exif.GPSAltitude) }} m</span>
+                <span class="lb-val">{{ Math.round(currentItem.exif.GPSAltitude) }} m</span>
               </div>
               <div class="lb-row">
                 <span class="lb-key"></span>
@@ -191,16 +231,18 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Play, FolderInput, Images, Folder, Share2, Trash2, X, Pencil } from 'lucide-vue-next';
+import { Play, Pause, FolderInput, Images, Folder, Share2, Trash2, X, Pencil, Maximize2, Minimize2, MapPin, Calendar, Tag, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 
 const { t } = useI18n();
 
 const props = defineProps({
   item: { type: Object, required: true },
-  folders: { type: Array, default: () => [] }
+  folders: { type: Array, default: () => [] },
+  items: { type: Array, default: () => [] },
+  startIndex: { type: Number, default: -1 },
 });
 const emit = defineEmits(['delete', 'move', 'share']);
 
@@ -208,20 +250,41 @@ const imageStore = useImagesStore();
 
 const lightbox = ref(false);
 const lightboxEl = ref(null);
+const isFullscreen = ref(false);
 const showMoveMenu = ref(false);
+
+// Navigation & slideshow
+const currentIdx = ref(0);
+const currentItem = computed(() =>
+  props.items.length > 0 && currentIdx.value >= 0
+    ? props.items[currentIdx.value]
+    : props.item
+);
+const SLIDESHOW_INTERVAL = 4000;
+const slideshowActive = ref(false);
+let slideshowTimer = null;
+
+const toggleFullscreen = () => {
+  if (!document.fullscreenElement) {
+    lightboxEl.value?.requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
+};
+const onFullscreenChange = () => { isFullscreen.value = !!document.fullscreenElement; };
 
 // Description editing
 const editingDesc = ref(false);
 const descDraft = ref('');
 const startEditDesc = () => {
-  descDraft.value = props.item.description || '';
+  descDraft.value = currentItem.value.description || '';
   editingDesc.value = true;
 };
 const saveDesc = async () => {
   editingDesc.value = false;
   const val = descDraft.value.trim();
-  if (val === (props.item.description || '')) return;
-  await imageStore.updateImage(props.item._id, { description: val });
+  if (val === (currentItem.value.description || '')) return;
+  await imageStore.updateImage(currentItem.value._id, { description: val });
 };
 
 // Swipe-to-close for mobile
@@ -234,16 +297,32 @@ const onSwipeStart = (e) => {
 const onSwipeEnd = (e) => {
   const dx = e.changedTouches[0].clientX - _swipeStartX;
   const dy = e.changedTouches[0].clientY - _swipeStartY;
-  // Close on downward swipe (>80px vertical, dominant direction)
+  // Horizontal swipe: prev / next
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+    if (dx < 0) nextItem(); else prevItem();
+    return;
+  }
+  // Downward swipe: close
   if (dy > 80 && Math.abs(dy) > Math.abs(dx) * 1.5) lightbox.value = false;
 };
 
 watch(lightbox, async (val) => {
-  if (val) { await nextTick(); lightboxEl.value?.focus(); }
+  if (val) {
+    await nextTick();
+    lightboxEl.value?.focus();
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+  } else {
+    document.removeEventListener('fullscreenchange', onFullscreenChange);
+    if (document.fullscreenElement) document.exitFullscreen();
+    isFullscreen.value = false;
+    if (slideshowTimer) { clearTimeout(slideshowTimer); slideshowTimer = null; }
+    slideshowActive.value = false;
+  }
 });
 
 const openLightbox = () => {
   showMoveMenu.value = false;
+  currentIdx.value = props.startIndex >= 0 ? props.startIndex : 0;
   lightbox.value = true;
 };
 
@@ -253,10 +332,60 @@ const move = (folderId) => {
 };
 
 const mapsUrl = computed(() => {
-  const lat = props.item.exif?.latitude;
-  const lon = props.item.exif?.longitude;
+  const lat = currentItem.value?.exif?.latitude;
+  const lon = currentItem.value?.exif?.longitude;
   if (lat === undefined || lon === undefined) return '#';
   return `https://www.google.com/maps?q=${lat},${lon}`;
+});
+
+const prevItem = () => {
+  if (props.items.length < 2) return;
+  editingDesc.value = false;
+  currentIdx.value = (currentIdx.value - 1 + props.items.length) % props.items.length;
+};
+const nextItem = () => {
+  if (props.items.length < 2) return;
+  editingDesc.value = false;
+  currentIdx.value = (currentIdx.value + 1) % props.items.length;
+};
+const scheduleNext = () => {
+  if (slideshowTimer) { clearTimeout(slideshowTimer); slideshowTimer = null; }
+  if (!slideshowActive.value) return;
+  if (currentItem.value?.mediaType !== 'video') {
+    slideshowTimer = setTimeout(() => { nextItem(); scheduleNext(); }, SLIDESHOW_INTERVAL);
+  }
+  // videos: handled by @ended → onVideoEnded
+};
+const onVideoEnded = () => {
+  if (!slideshowActive.value) return;
+  nextItem();
+  scheduleNext();
+};
+const toggleSlideshow = () => {
+  if (props.items.length < 2) return;
+  slideshowActive.value = !slideshowActive.value;
+  if (slideshowActive.value) {
+    scheduleNext();
+  } else {
+    if (slideshowTimer) { clearTimeout(slideshowTimer); slideshowTimer = null; }
+  }
+};
+watch(currentIdx, () => {
+  if (slideshowActive.value) {
+    if (slideshowTimer) { clearTimeout(slideshowTimer); slideshowTimer = null; }
+    scheduleNext();
+  }
+});
+const onLightboxKeydown = (e) => {
+  if (editingDesc.value) return;
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); prevItem(); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); nextItem(); }
+  else if (e.key === 'Escape') lightbox.value = false;
+  else if (e.key === ' ')     { e.preventDefault(); toggleSlideshow(); }
+};
+
+onUnmounted(() => {
+  if (slideshowTimer) { clearTimeout(slideshowTimer); slideshowTimer = null; }
 });
 
 const formatSize = (bytes) => {
@@ -463,16 +592,23 @@ const formatExposureProgram = (v) => EXPOSURE_PROGRAM[v] ?? String(v);
   overflow: hidden;
 }
 
-.lb-close {
+/* ── Topbar controls ── */
+.lb-topbar {
   position: absolute;
-  top: 0.75rem;
+  top: 0.625rem;
   right: 0.75rem;
   z-index: 10;
   display: flex;
   align-items: center;
+  gap: 0.375rem;
+}
+
+.lb-topbar-btn {
+  display: flex;
+  align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
@@ -480,10 +616,115 @@ const formatExposureProgram = (v) => EXPOSURE_PROGRAM[v] ?? String(v);
   border: none;
   cursor: pointer;
   transition: background 0.15s;
-  flex-shrink: 0;
   line-height: 1;
+  flex-shrink: 0;
 }
-.lb-close:hover { background: rgba(255, 255, 255, 0.24); }
+.lb-topbar-btn:hover { background: rgba(255, 255, 255, 0.24); }
+
+.lb-counter {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.55);
+  white-space: nowrap;
+  user-select: none;
+  margin-right: 0.125rem;
+}
+
+/* ── Prev / Next arrows ── */
+.lb-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 60px;
+  padding: 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.38);
+  color: rgba(255, 255, 255, 0.85);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.lb-arrow:hover { background: rgba(0, 0, 0, 0.62); }
+.lb-arrow-prev { left: 0.625rem; }
+.lb-arrow-next { right: 0.625rem; }
+
+/* ── Slideshow progress bar ── */
+.lb-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: 20;
+  pointer-events: none;
+}
+.lb-progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  animation: lb-progress 4s linear forwards;
+}
+@keyframes lb-progress {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+/* Badge pills over the image */
+.lb-badges {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0 1rem;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.lb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: auto;
+}
+
+.lb-badge-name {
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.lb-badge-date {
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.lb-badge-loc {
+  background: rgba(0, 0, 0, 0.55);
+  color: #86efac;
+  border: 1px solid rgba(134, 239, 172, 0.25);
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.lb-badge-loc:hover { background: rgba(0, 0, 0, 0.75); }
 
 .lb-layout {
   flex: 1;
@@ -501,6 +742,7 @@ const formatExposureProgram = (v) => EXPOSURE_PROGRAM[v] ?? String(v);
   justify-content: center;
   padding: 3.5rem 1.5rem 1.5rem;
   overflow: hidden;
+  position: relative;
 }
 
 .lb-img {
@@ -658,6 +900,13 @@ const formatExposureProgram = (v) => EXPOSURE_PROGRAM[v] ?? String(v);
   }
 
   .lb-img, .lb-video { max-height: 52dvh; }
+
+  .lb-arrow {
+    top: 26dvh;
+    transform: none;
+    width: 36px;
+    height: 48px;
+  }
 
   .lb-panel {
     width: 100%;

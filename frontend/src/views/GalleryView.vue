@@ -127,6 +127,7 @@
             <span class="count">{{ imageStore.total }}</span>
           </h2>
           <div class="header-actions">
+            <button v-if="imageStore.activeFolder" class="btn-ghost icon-btn" @click="openNewSubfolder"><FolderPlus :size="14" /> {{ t('gallery.newFolder') }}</button>
             <button v-if="imageStore.activeFolder" class="btn-ghost icon-btn" @click="openFolderShare"><Link2 :size="14" /> {{ t('gallery.shareFolder') }}</button>
             <button class="btn-primary icon-btn" @click="showUpload = true"><Upload :size="14" /> {{ t('gallery.upload') }}</button>
           </div>
@@ -216,6 +217,8 @@
                 </div>
                 <MediaCard
                   :item="slot.item"
+                  :items="imageStore.images"
+                  :start-index="slot.origIdx"
                   :folders="folderStore.folders"
                   @delete="handleDelete"
                   @move="handleMove"
@@ -247,6 +250,17 @@
           </div>
         </div>
       </div>
+    </Teleport>
+
+    <!-- ── Toast notifications ── -->
+    <Teleport to="body">
+      <Transition name="toast">
+        <div v-if="toast" class="toast-notification" :class="'toast-' + toast.type">
+          <Check v-if="toast.type === 'success'" :size="14" class="toast-icon" />
+          <AlertTriangle v-else :size="14" class="toast-icon" />
+          {{ toast.message }}
+        </div>
+      </Transition>
     </Teleport>
 
     <UploadModal
@@ -309,7 +323,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload, ChevronLeft, Camera, GripVertical, ImagePlus } from 'lucide-vue-next';
+import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload, ChevronLeft, Camera, GripVertical, ImagePlus, Check, AlertTriangle } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 import { useFolderStore } from '../stores/folders';
 import { useConfirm } from '../composables/useConfirm';
@@ -322,6 +336,15 @@ const { t } = useI18n();
 const { ask } = useConfirm();
 const imageStore = useImagesStore();
 const folderStore = useFolderStore();
+
+// ── Toast notifications ──
+const toast = ref(null);
+let toastTimer = null;
+const showToast = (message, type = 'success') => {
+  if (toastTimer) clearTimeout(toastTimer);
+  toast.value = { message, type };
+  toastTimer = setTimeout(() => { toast.value = null; }, 3200);
+};
 
 const showUpload = ref(false);
 const showNewFolder = ref(false);
@@ -430,7 +453,10 @@ const saveRenameFolder = async (f) => {
   editingFolderId.value = null;
   const v = folderRenameDraft.value.trim();
   if (!v || v === f.name) return;
-  try { await folderStore.renameFolder(f._id, v); } catch (_) {}
+  try {
+    await folderStore.renameFolder(f._id, v);
+    showToast(`Kansio nimetty "${v}"`);
+  } catch (_) {}
 };
 
 const startEditHeaderLabel = () => {
@@ -452,7 +478,10 @@ const saveHeaderLabel = async () => {
   } else {
     const f = folderStore.folders.find((f) => f._id === imageStore.activeFolder);
     if (f && v !== f.name) {
-      try { await folderStore.renameFolder(f._id, v); } catch (_) {}
+      try {
+        await folderStore.renameFolder(f._id, v);
+        showToast(`Kansio nimetty "${v}"`);
+      } catch (_) {}
     }
   }
 };
@@ -554,6 +583,7 @@ const onSidebarDrop = async (folderId, e) => {
     imageStore.images = imageStore.images.filter(img => img._id !== image._id);
     imageStore.total = Math.max(0, imageStore.total - 1);
     await folderStore.fetchFolders();
+    showToast('Siirretty → juuri');
   } else {
     const folder = folderStore.folders.find(f => f._id === folderId);
     if (folder) {
@@ -561,6 +591,7 @@ const onSidebarDrop = async (folderId, e) => {
       imageStore.images = imageStore.images.filter(img => img._id !== image._id);
       imageStore.total = Math.max(0, imageStore.total - 1);
       await folderStore.fetchFolders();
+      showToast(`Siirretty → "${folder.name}"`);
     }
   }
 };
@@ -619,12 +650,18 @@ const selectFolder = async (id) => {
 
 const changePage = (p) => imageStore.fetchImages(p);
 
+const openNewSubfolder = () => {
+  newFolderName.value = '';
+  folderError.value = '';
+  showNewFolder.value = true;
+};
+
 const createFolder = async () => {
   folderError.value = '';
   if (!newFolderName.value.trim()) return;
   try {
-    // Create as subfolder of current folder if inside one
     await folderStore.createFolder(newFolderName.value.trim(), imageStore.activeFolder);
+    showToast(`Kansio "${newFolderName.value.trim()}" luotu`);
     newFolderName.value = '';
     showNewFolder.value = false;
   } catch (err) {
@@ -640,7 +677,9 @@ const confirmDeleteFolder = async (folder) => {
     danger: true
   });
   if (!ok) return;
+  const deletedName = folder.name;
   await folderStore.deleteFolder(folder._id);
+  showToast(`Kansio "${deletedName}" poistettu`);
   // Refetch all folders since subfolders were also deleted server-side
   await folderStore.fetchFolders();
   // If we were inside a deleted folder (or its descendant), go back to root
@@ -662,6 +701,7 @@ const handleDelete = async (id) => {
   });
   if (!ok) return;
   await imageStore.deleteImage(id);
+  showToast('Tiedosto poistettu');
   if (!imageStore.activeFolder) totalAll.value = imageStore.total + folderStore.folders.length;
 };
 
@@ -680,6 +720,8 @@ const handleMove = async (id, folderId) => {
   imageStore.images = imageStore.images.filter((img) => img._id !== id);
   imageStore.total = Math.max(0, imageStore.total - 1);
   await folderStore.fetchFolders();
+  const dest = folderId ? folderStore.folders.find(f => f._id === folderId)?.name : 'juuri';
+  showToast(`Siirretty${dest ? ` → "${dest}"` : ''}`);
 };
 
 const onUploaded = async () => {
@@ -1150,6 +1192,44 @@ const onUploaded = async () => {
 }
 
 /* ── Inline drop zone ── */
+/* ── Toast ── */
+.toast-notification {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: 999px;
+  font-size: 0.825rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+}
+
+.toast-success {
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 40%, transparent);
+  color: var(--color-primary);
+}
+
+.toast-error {
+  background: color-mix(in srgb, var(--color-danger) 18%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
+  color: var(--color-danger);
+}
+
+.toast-icon { flex-shrink: 0; }
+
+.toast-enter-active  { transition: opacity 0.2s ease, transform 0.2s ease; }
+.toast-leave-active  { transition: opacity 0.25s ease, transform 0.25s ease; }
+.toast-enter-from    { opacity: 0; transform: translateX(-50%) translateY(0.5rem); }
+.toast-leave-to      { opacity: 0; transform: translateX(-50%) translateY(0.5rem); }
+
 .inline-drop-zone {
   display: flex;
   align-items: center;
