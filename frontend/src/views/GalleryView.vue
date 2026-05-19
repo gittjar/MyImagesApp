@@ -873,19 +873,19 @@ const onUploaded = async () => {
 
 /* ── Sidebar tree lines ── */
 .tree-guide { display: flex; align-self: stretch; flex-shrink: 0; }
-.tg-vert, .tg-branch { width: 0.75rem; flex-shrink: 0; align-self: stretch; position: relative; }
+.tg-vert, .tg-branch { width: 0.875rem; flex-shrink: 0; align-self: stretch; position: relative; }
 .tg-vert.tg-open::before {
   content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
-  width: 1px; background: var(--color-border); transform: translateX(-50%);
+  width: 2px; background: #9b82cc; border-radius: 1px; transform: translateX(-50%);
 }
 .tg-branch::before {
   content: ''; position: absolute; left: 50%; top: 0; bottom: 50%;
-  width: 1px; background: var(--color-border); transform: translateX(-50%);
+  width: 2px; background: #9b82cc; border-radius: 1px; transform: translateX(-50%);
 }
 .tg-branch:not(.tg-last)::before { bottom: 0; }
 .tg-branch::after {
   content: ''; position: absolute; left: 50%; right: 0; top: 50%;
-  height: 1px; background: var(--color-border); transform: translateY(-50%);
+  height: 2px; background: #9b82cc; border-radius: 1px; transform: translateY(-50%);
 }
 .tree-toggle {
   display: flex; align-items: center; justify-content: center;
