@@ -121,7 +121,7 @@
           :title="t('upload.dropHint')"
         >
           <Upload :size="16" class="drop-zone-icon" />
-          <span>{{ dragOver ? t('upload.dropHere') : t('gallery.upload') }}</span>
+          <span>{{ dragOver ? t('upload.dropHere') : t('upload.dropHint') }}</span>
           <input ref="fileInputRef" type="file" accept="image/*,video/*,.heic,.heif" multiple hidden @change="onInlineFileChange" />
         </div>
 

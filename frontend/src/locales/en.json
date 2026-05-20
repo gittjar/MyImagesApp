@@ -98,7 +98,7 @@
   },
   "upload": {
     "title": "Upload media",
-    "dropHint": "Drop files here or",
+    "dropHint": "Drop, drag or select files to upload",
     "dropHere": "Drop to upload!",
     "clickToBrowse": "click to browse",
     "acceptedFormats": "Images: JPEG, PNG, GIF, WEBP, HEIC · Videos: MP4, MOV, WEBM · max 200 MB",

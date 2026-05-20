@@ -98,7 +98,7 @@
   },
   "upload": {
     "title": "Lataa mediaa",
-    "dropHint": "Pudota tiedostoja tai",
+    "dropHint": "Pudota, raahaa tai valitse ladattavat tiedostot",
     "dropHere": "Pudota ladataksesi!",
     "clickToBrowse": "selaa tiedostoja",
     "acceptedFormats": "Kuvat: JPEG, PNG, GIF, WEBP, HEIC · Videot: MP4, MOV, WEBM · max 200 MB",
