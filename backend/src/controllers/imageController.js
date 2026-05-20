@@ -23,6 +23,27 @@ const isHeic = (file) =>
 const isVideoFile = (file) =>
   VIDEO_TYPES.has(file.mimetype) || VIDEO_EXTS.has(getExt(file.originalname));
 
+const reverseGeocode = async (lat, lon) => {
+  const key = process.env.GOOGLE_GEOCODING_KEY;
+  if (!key) return null;
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${key}&language=fi&result_type=locality|administrative_area_level_1|country`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.status !== 'OK' || !data.results?.length) return null;
+    const comps = data.results[0].address_components;
+    const locality = comps.find(c => c.types.includes('locality'))?.long_name;
+    const area = comps.find(c => c.types.includes('administrative_area_level_1'))?.long_name;
+    const country = comps.find(c => c.types.includes('country'))?.long_name;
+    const parts = [locality || area, country].filter(Boolean);
+    return parts.length ? parts.join(', ') : null;
+  } catch (e) {
+    console.warn('[Geocoding error]', e.message);
+    return null;
+  }
+};
+
 const uploadImage = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file provided' });
@@ -62,6 +83,12 @@ const uploadImage = async (req, res) => {
       } catch (e) {
         console.warn('[EXIF parse error]', e.message);
       }
+    }
+
+    // Reverse geocode GPS coordinates if present
+    if (exifData?.latitude !== undefined && exifData?.longitude !== undefined) {
+      const locationName = await reverseGeocode(exifData.latitude, exifData.longitude);
+      if (locationName) exifData.locationName = locationName;
     }
 
     // Convert HEIC/HEIF → JPEG (sharp's prebuilt libvips only supports AVIF, not HEIC)

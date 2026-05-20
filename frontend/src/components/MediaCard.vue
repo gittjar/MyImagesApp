@@ -101,7 +101,7 @@
               <Calendar :size="11" />{{ formatExifDate(currentItem.exif.DateTimeOriginal) }}
             </span>
             <a v-if="currentItem.exif?.latitude !== undefined" :href="mapsUrl" target="_blank" rel="noopener noreferrer" class="lb-badge lb-badge-loc" @click.stop>
-              <MapPin :size="11" />{{ formatGPS(currentItem.exif.latitude, currentItem.exif.longitude) }}
+              <MapPin :size="11" />{{ currentItem.exif.locationName || formatGPS(currentItem.exif.latitude, currentItem.exif.longitude) }}
             </a>
           </div>
         </div>
@@ -210,6 +210,10 @@
             <!-- GPS -->
             <div v-if="currentItem.exif.latitude !== undefined" class="lb-group">
               <div class="lb-group-label">Sijainti</div>
+              <div v-if="currentItem.exif.locationName" class="lb-row">
+                <span class="lb-key">Paikka</span>
+                <span class="lb-val">{{ currentItem.exif.locationName }}</span>
+              </div>
               <div class="lb-row">
                 <span class="lb-key">Koordinaatit</span>
                 <span class="lb-val">{{ formatGPS(currentItem.exif.latitude, currentItem.exif.longitude) }}</span>
