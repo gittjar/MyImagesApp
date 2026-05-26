@@ -1,6 +1,7 @@
 {
   "nav": {
     "admin": "Admin",
+    "myShares": "My shares",
     "share": "Share",
     "signOut": "Sign out",
     "switchToLight": "Switch to light",
@@ -129,6 +130,30 @@
     "addDescription": "Add description…",
     "editDescription": "Edit description",
     "descriptionPlaceholder": "Describe this image…"
+  },
+  "myShares": {
+    "title": "My share links",
+    "newShare": "New share",
+    "loading": "Loading…",
+    "empty": "You haven't shared anything yet.",
+    "createFirst": "Create your first share",
+    "colLink": "Link",
+    "colScope": "Target",
+    "colExpiry": "Expires",
+    "colCreated": "Created",
+    "colActions": "Actions",
+    "pinProtected": "PIN protected",
+    "expired": "Expired",
+    "never": "Never",
+    "scopeAll": "All media",
+    "scopeFolder": "Folder",
+    "scopeSelection": "{n} item | {n} items",
+    "copy": "Copy link",
+    "open": "Open in new tab",
+    "delete": "Delete",
+    "deleteTitle": "Delete share",
+    "deleteConfirm": "Delete share \u201c{slug}\u201d? The link will stop working immediately.",
+    "deleteConfirmBtn": "Delete share"
   },
   "admin": {
     "title": "Admin Panel",

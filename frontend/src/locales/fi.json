@@ -1,6 +1,7 @@
 {
   "nav": {
     "admin": "Admin",
+    "myShares": "Omat jaot",
     "share": "Jaa",
     "signOut": "Kirjaudu ulos",
     "switchToLight": "Vaihda vaaleaan",
@@ -157,6 +158,30 @@
     "disabled": "Poistettu",
     "prev": "Edellinen",
     "next": "Seuraava"
+  },
+  "myShares": {
+    "title": "Omat jakolinkit",
+    "newShare": "Uusi jako",
+    "loading": "Ladataan…",
+    "empty": "Et ole jakanut mitään vielä.",
+    "createFirst": "Luo ensimmäinen jako",
+    "colLink": "Linkki",
+    "colScope": "Kohde",
+    "colExpiry": "Vanhenee",
+    "colCreated": "Luotu",
+    "colActions": "Toiminnot",
+    "pinProtected": "PIN-suojattu",
+    "expired": "Vanhentunut",
+    "never": "Ei koskaan",
+    "scopeAll": "Kaikki media",
+    "scopeFolder": "Kansio",
+    "scopeSelection": "{n} kuva | {n} kuvaa",
+    "copy": "Kopioi linkki",
+    "open": "Avaa uudessa välilehdessä",
+    "delete": "Poista",
+    "deleteTitle": "Poista jako",
+    "deleteConfirm": "Poistetaanko jako \u201c{slug}\u201d? Linkki lakkaa toimimasta välittömästi.",
+    "deleteConfirmBtn": "Poista jako"
   },
   "shareView": {
     "loading": "Ladataan…",

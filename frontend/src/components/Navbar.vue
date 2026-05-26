@@ -10,6 +10,7 @@
           <span class="username">{{ auth.user?.name }}</span>
         </div>
         <RouterLink v-if="auth.user?.role === 'admin' || auth.user?.role === 'subadmin'" to="/admin" class="btn-ghost nav-btn">{{ t('nav.admin') }}</RouterLink>
+        <RouterLink to="/shares" class="btn-ghost nav-btn">{{ t('nav.myShares') }}</RouterLink>
         <button class="btn-ghost nav-btn" @click="showShare = true">{{ t('nav.share') }}</button>
         <button class="btn-ghost nav-btn lang-btn" @click="toggleLang" :title="t('nav.langToggle')">{{ t('nav.langToggle') }}</button>
         <button class="btn-icon theme-btn" @click="theme.toggle()" :title="theme.isDark ? t('nav.switchToLight') : t('nav.switchToDark')">
@@ -35,6 +36,7 @@
         <span>{{ auth.user?.name }}</span>
       </div>
       <RouterLink v-if="auth.user?.role === 'admin' || auth.user?.role === 'subadmin'" to="/admin" class="mobile-link" @click="menuOpen = false">{{ t('nav.admin') }}</RouterLink>
+      <RouterLink to="/shares" class="mobile-link" @click="menuOpen = false">{{ t('nav.myShares') }}</RouterLink>
       <button class="mobile-link" @click="showShare = true; menuOpen = false">{{ t('nav.share') }}</button>
       <button class="mobile-link danger-link" @click="handleLogout">{{ t('nav.signOut') }}</button>
     </div>

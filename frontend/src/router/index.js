@@ -26,6 +26,12 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
+    path: '/shares',
+    name: 'MyShares',
+    component: () => import('../views/MySharesView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/share/:userId/:slug',
     name: 'Share',
     component: () => import('../views/ShareView.vue')
