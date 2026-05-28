@@ -45,11 +45,19 @@ const createFolder = async (req, res) => {
 
 const renameFolder = async (req, res) => {
   try {
-    const { name } = req.body;
-    if (!name?.trim()) return res.status(400).json({ message: 'Folder name is required' });
+    const { name, description } = req.body;
+    const update = {};
+    if (name !== undefined) {
+      if (!name?.trim()) return res.status(400).json({ message: 'Folder name is required' });
+      update.name = name.trim();
+    }
+    if (description !== undefined) {
+      update.description = description.trim();
+    }
+    if (!Object.keys(update).length) return res.status(400).json({ message: 'Nothing to update' });
     const folder = await Folder.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },
-      { name: name.trim() },
+      update,
       { new: true }
     );
     if (!folder) return res.status(404).json({ message: 'Folder not found' });

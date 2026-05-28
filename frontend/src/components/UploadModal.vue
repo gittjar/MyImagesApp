@@ -77,17 +77,41 @@
 
         <!-- Metadata form (pending tasks, before upload) -->
         <form v-if="tasks.length && !isUploading && !allDone" @submit.prevent="submit" class="meta-form">
-          <!-- Folder selector -->
+          <!-- Folder tree picker -->
           <div v-if="props.folders.length" class="form-group">
             <label>{{ t('upload.folderLabel') }}</label>
-            <select v-model="selectedFolder">
-              <option value="">{{ t('upload.noFolder') }}</option>
-              <option v-for="f in props.folders" :key="f._id" :value="f._id">{{ f.name }}</option>
-            </select>
+            <div ref="folderPickerRef" class="folder-picker">
+              <button type="button" class="fp-trigger" @click="folderPickerOpen = !folderPickerOpen">
+                <Folder :size="14" class="fp-icon" />
+                <span class="fp-label">{{ selectedFolderLabel }}</span>
+                <ChevronDown :size="14" :class="['fp-chevron', { rotated: folderPickerOpen }]" />
+              </button>
+              <div v-if="folderPickerOpen" class="fp-dropdown">
+                <button type="button" class="fp-item" :class="{ active: !selectedFolder }" @click="selectFolder('')">
+                  <span class="fp-no-folder-label">{{ t('upload.noFolder') }}</span>
+                </button>
+                <button
+                  v-for="item in flatTree"
+                  :key="item._id"
+                  type="button"
+                  class="fp-item"
+                  :class="{ active: selectedFolder === item._id }"
+                  :style="{ paddingLeft: (0.6 + item.depth * 1.1) + 'rem' }"
+                  @click="selectFolder(item._id)"
+                >
+                  <FolderOpen v-if="selectedFolder === item._id" :size="14" class="fp-icon" />
+                  <Folder v-else :size="14" class="fp-icon" />
+                  <span>{{ item.name }}</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <div class="form-group">
-            <label>{{ t('upload.descriptionLabel') }}</label>
-            <textarea v-model="description" rows="2" :placeholder="t('upload.descriptionPlaceholder')" />
+          <!-- Description: goes to the image when single file, to the folder when bulk uploading -->
+          <div v-if="tasks.length === 1 || (tasks.length > 1 && selectedFolder)" class="form-group">
+            <label>
+              {{ tasks.length > 1 ? t('upload.folderDescriptionLabel') : t('upload.descriptionLabel') }}
+            </label>
+            <textarea v-model="description" rows="2" :placeholder="tasks.length > 1 ? t('upload.folderDescriptionPlaceholder') : t('upload.descriptionPlaceholder')" />
           </div>
           <div class="form-group">
             <label>{{ t('upload.tagsLabel') }} <small>{{ t('upload.tagsHint') }}</small></label>
@@ -124,10 +148,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { X, UploadCloud, FileImage, Film, Camera, Plus } from 'lucide-vue-next';
+import { X, UploadCloud, FileImage, Film, Camera, Plus, Folder, FolderOpen, ChevronDown } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
+import { useFolderStore } from '../stores/folders';
 
 const { t } = useI18n();
 
@@ -137,6 +162,7 @@ const props = defineProps({
 });
 const emit = defineEmits(['close', 'uploaded']);
 const store = useImagesStore();
+const folderStore = useFolderStore();
 
 const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov', 'avi', 'mkv']);
 const VIDEO_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/avi', 'video/x-matroska', 'video/x-msvideo']);
@@ -150,6 +176,8 @@ const description = ref('');
 const tags = ref('');
 const isPublic = ref(false);
 const selectedFolder = ref(props.initialFolder || '');
+const folderPickerOpen = ref(false);
+const folderPickerRef = ref(null);
 const error = ref('');
 const tasks = ref([]);
 
@@ -157,6 +185,32 @@ const isUploading = computed(() => tasks.value.some(t => t.status === 'uploading
 const allDone = computed(() => tasks.value.length > 0 && tasks.value.every(t => t.status === 'done' || t.status === 'error'));
 const pendingCount = computed(() => tasks.value.filter(t => t.status === 'pending').length);
 const doneCount = computed(() => tasks.value.filter(t => t.status === 'done').length);
+
+// ── Folder tree picker ──────────────────────────────────────────────────────
+const buildFlatTree = (allFolders, parentId = null, depth = 0) =>
+  allFolders
+    .filter((f) => (f.parent ?? null) === parentId)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap((f) => [{ ...f, depth }, ...buildFlatTree(allFolders, f._id, depth + 1)]);
+
+const flatTree = computed(() => buildFlatTree(props.folders));
+
+const selectedFolderLabel = computed(() =>
+  selectedFolder.value
+    ? (props.folders.find((f) => f._id === selectedFolder.value)?.name || t('upload.noFolder'))
+    : t('upload.noFolder')
+);
+
+const selectFolder = (id) => {
+  selectedFolder.value = id;
+  folderPickerOpen.value = false;
+};
+
+const onDocClick = (e) => {
+  if (folderPickerRef.value && !folderPickerRef.value.contains(e.target)) {
+    folderPickerOpen.value = false;
+  }
+};
 
 const isVideoFile = (f) => {
   const ext = f.name.split('.').pop().toLowerCase();
@@ -195,13 +249,26 @@ const submit = async () => {
   const pending = tasks.value.filter(t => t.status === 'pending');
   if (!pending.length) return;
   error.value = '';
+
+  const isBulk = pending.length > 1;
+
+  // Bulk upload + folder selected → save description to the folder, not each image
+  if (isBulk && selectedFolder.value && description.value.trim()) {
+    try {
+      await folderStore.updateFolderDescription(selectedFolder.value, description.value.trim());
+    } catch {
+      // non-fatal — continue with upload
+    }
+  }
+
   for (const task of pending) {
     task.status = 'uploading';
     task.progress = 0;
     try {
       const fd = new FormData();
       fd.append('image', task.file);
-      fd.append('description', description.value);
+      // Description goes to the image only for single-file uploads
+      if (!isBulk) fd.append('description', description.value);
       fd.append('tags', tags.value);
       fd.append('isPublic', String(isPublic.value));
       if (selectedFolder.value) fd.append('folder', selectedFolder.value);
@@ -214,6 +281,9 @@ const submit = async () => {
     }
   }
 };
+
+onMounted(() => document.addEventListener('mousedown', onDocClick));
+onBeforeUnmount(() => document.removeEventListener('mousedown', onDocClick));
 </script>
 
 <style scoped>
@@ -334,6 +404,40 @@ const submit = async () => {
 .checkbox-row label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; cursor: pointer; }
 .checkbox-row input[type='checkbox'] { width: auto; accent-color: var(--color-primary); }
 .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.25rem; }
+
+/* Folder tree picker */
+.folder-picker { position: relative; }
+.fp-trigger {
+  width: 100%; display: flex; align-items: center; gap: 0.5rem;
+  background: var(--color-surface-2); border: 1px solid var(--color-border);
+  border-radius: var(--radius); padding: 0.5rem 0.75rem;
+  font-size: 0.875rem; color: var(--color-text);
+  transition: border-color 0.15s; cursor: pointer;
+}
+.fp-trigger:hover { border-color: var(--color-primary); }
+.fp-label { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-chevron { color: var(--color-muted); transition: transform 0.2s; flex-shrink: 0; }
+.fp-chevron.rotated { transform: rotate(180deg); }
+.fp-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg);
+  max-height: 200px; overflow-y: auto; z-index: 50;
+}
+.fp-item {
+  width: 100%; display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.45rem 0.75rem; font-size: 0.85rem; color: var(--color-text);
+  background: none; border: none; text-align: left; cursor: pointer;
+  transition: background 0.1s; white-space: nowrap;
+}
+.fp-item:hover { background: var(--color-surface-2); }
+.fp-item.active {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary); font-weight: 500;
+}
+.fp-icon { flex-shrink: 0; color: var(--color-muted); }
+.fp-item.active .fp-icon { color: var(--color-primary); }
+.fp-no-folder-label { color: var(--color-muted); font-style: italic; }
 
 @media (max-width: 480px) {
   .modal { max-height: 100dvh; border-radius: 16px 16px 0 0; }

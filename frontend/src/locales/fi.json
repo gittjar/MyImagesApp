@@ -107,6 +107,8 @@
     "noFolder": "— Ei kansiota (juuri) —",
     "descriptionLabel": "Kuvaus",
     "descriptionPlaceholder": "Valinnainen kuvaus…",
+    "folderDescriptionLabel": "Kansion kuvaus",
+    "folderDescriptionPlaceholder": "Valinnainen kuvaus kansiolle…",
     "tagsLabel": "Tagit",
     "tagsHint": "(pilkulla erotettuna)",
     "tagsPlaceholder": "luonto, matkailu, ruoka",

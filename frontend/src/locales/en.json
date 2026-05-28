@@ -107,6 +107,8 @@
     "noFolder": "— No folder (root) —",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "Optional description…",
+    "folderDescriptionLabel": "Folder description",
+    "folderDescriptionPlaceholder": "Optional description for this folder…",
     "tagsLabel": "Tags",
     "tagsHint": "(comma separated)",
     "tagsPlaceholder": "nature, travel, food",

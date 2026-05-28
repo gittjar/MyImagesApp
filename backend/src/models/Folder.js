@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const folderSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   name: { type: String, required: true, trim: true, maxlength: 100 },
+  description: { type: String, default: '', trim: true, maxlength: 500 },
   parent: { type: mongoose.Schema.Types.ObjectId, ref: 'Folder', default: null }
 }, { timestamps: true });
 

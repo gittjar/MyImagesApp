@@ -24,6 +24,12 @@ export const useFolderStore = defineStore('folders', () => {
     folders.value.sort((a, b) => a.name.localeCompare(b.name));
   };
 
+  const updateFolderDescription = async (id, description) => {
+    const { data } = await api.patch(`/folders/${id}`, { description });
+    const idx = folders.value.findIndex((f) => f._id === id);
+    if (idx !== -1) folders.value[idx] = { ...folders.value[idx], ...data.folder };
+  };
+
   const deleteFolder = async (id) => {
     await api.delete(`/folders/${id}`);
     folders.value = folders.value.filter((f) => f._id !== id);
@@ -34,5 +40,5 @@ export const useFolderStore = defineStore('folders', () => {
     if (f) f.count = (f.count || 0) + 1;
   };
 
-  return { folders, fetchFolders, createFolder, renameFolder, deleteFolder, incrementCount };
+  return { folders, fetchFolders, createFolder, renameFolder, updateFolderDescription, deleteFolder, incrementCount };
 });
