@@ -88,30 +88,21 @@
           class="thumb-card"
           @click="openLightbox(img)"
         >
-          <img :src="img.url" :alt="img.originalName" loading="lazy" />
-          <!-- Description ribbon -->
-          <div v-if="img.description" class="thumb-desc">{{ img.description }}</div>
-          <!-- EXIF pill badges (bottom-left) -->
-          <div
-            v-if="!dismissedPills.has(img._id) && (exifDate(img) || exifTime(img) || img.exif?.locationName)"
-            class="thumb-pills"
-            @click.stop
-          >
-            <span v-if="exifDate(img)" class="thumb-pill">
-              <CalendarDays :size="10" />
-              {{ exifDate(img) }}
-            </span>
-            <span v-if="exifTime(img)" class="thumb-pill">
-              <Clock :size="10" />
-              {{ exifTime(img) }}
-            </span>
-            <span v-if="img.exif?.locationName" class="thumb-pill thumb-pill-loc">
-              <MapPin :size="10" />
-              {{ img.exif.locationName }}
-            </span>
-            <button class="thumb-pill-close" @click.stop="dismissedPills = new Set([...dismissedPills, img._id])" :title="t('shareView.pillDismiss')">
-              <X :size="9" />
-            </button>
+          <div class="thumb-media-wrap">
+            <img :src="img.url" :alt="img.originalName" loading="lazy" />
+          </div>
+          <div class="thumb-meta">
+            <div class="thumb-meta-row">
+              <CalendarDays :size="12" class="thumb-meta-icon" />
+              <span class="thumb-meta-text">{{ exifDate(img) || '—' }}<template v-if="exifDate(img) && exifTime(img)"> • </template>{{ exifTime(img) || '' }}</span>
+            </div>
+            <div class="thumb-meta-row">
+              <MapPin :size="12" class="thumb-meta-icon" />
+              <span class="thumb-meta-text">{{ img.exif?.locationName || '—' }}</span>
+            </div>
+            <div v-if="img.description" class="thumb-meta-row thumb-meta-row-desc">
+              <span class="thumb-meta-text thumb-meta-text-desc">{{ img.description }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -210,7 +201,19 @@
               {{ t('shareView.showInfo') }}
             </button>
 
-            <div v-if="showMapPreview && mapEmbedUrl" class="lb-map-overlay">
+            <div
+              v-if="showMapPreview && mapEmbedUrl"
+              class="lb-map-overlay"
+              @wheel.prevent="onMapWheel"
+              @mouseenter="openMapPreview"
+              @mouseleave="closeMapPreview"
+            >
+              <div class="lb-map-toolbar">
+                <button class="lb-map-btn" type="button" @click.stop="mapZoomOut">−</button>
+                <span class="lb-map-zoom">{{ mapZoom }}</span>
+                <button class="lb-map-btn" type="button" @click.stop="mapZoomIn">+</button>
+                <button class="lb-map-btn lb-map-btn-close" type="button" @click.stop="showMapPreview = false; mapPreviewPinned = false">×</button>
+              </div>
               <iframe
                 class="lb-map-frame"
                 :src="mapEmbedUrl"
@@ -304,10 +307,10 @@
                     <button
                       class="lb-map-preview-trigger"
                       type="button"
-                      @mouseenter="showMapPreview = true"
-                      @mouseleave="showMapPreview = false"
-                      @focus="showMapPreview = true"
-                      @blur="showMapPreview = false"
+                      @mouseenter="openMapPreview"
+                      @mouseleave="closeMapPreview"
+                      @focus="openMapPreview"
+                      @blur="closeMapPreview"
                       @click.stop="toggleMapPreview"
                     >{{ t('shareView.mapPreview') }}</button>
                   </div>
@@ -344,9 +347,6 @@ const pinLockedUntil = ref(null);
 const attemptsRemaining = ref(5);
 const maxPinAttempts = ref(5);
 const errorMsg = ref('');
-
-// Dismissed pill groups (per image _id)
-const dismissedPills = ref(new Set());
 
 // ── EXIF pill helpers ──────────────────────────────────────────────────────
 function exifDate(img) {
@@ -397,22 +397,64 @@ const lightboxImg = ref(null);
 const lightboxIndex = ref(0);
 const lbPillsDismissed = ref(false);
 const showMapPreview = ref(false);
+const mapPreviewPinned = ref(false);
+const mapZoom = ref(13);
+let mapPreviewCloseTimer = null;
 
 const mapEmbedUrl = computed(() => {
   const lat = lightboxImg.value?.exif?.latitude;
   const lon = lightboxImg.value?.exif?.longitude;
   if (lat === undefined || lon === undefined) return '';
-  return `https://maps.google.com/maps?q=${lat},${lon}&z=13&output=embed`;
+  return `https://maps.google.com/maps?q=${lat},${lon}&z=${mapZoom.value}&output=embed`;
 });
+
+function openMapPreview() {
+  if (mapPreviewCloseTimer) {
+    clearTimeout(mapPreviewCloseTimer);
+    mapPreviewCloseTimer = null;
+  }
+  if (!mapEmbedUrl.value) return;
+  showMapPreview.value = true;
+}
+
+function closeMapPreview() {
+  if (mapPreviewPinned.value) return;
+  if (mapPreviewCloseTimer) clearTimeout(mapPreviewCloseTimer);
+  // Small delay allows cursor travel from link to overlay without flicker.
+  mapPreviewCloseTimer = setTimeout(() => {
+    if (!mapPreviewPinned.value) showMapPreview.value = false;
+    mapPreviewCloseTimer = null;
+  }, 180);
+}
 
 function toggleMapPreview() {
   if (!mapEmbedUrl.value) return;
-  showMapPreview.value = !showMapPreview.value;
+  mapPreviewPinned.value = !mapPreviewPinned.value;
+  showMapPreview.value = mapPreviewPinned.value;
+}
+
+function mapZoomIn() {
+  mapZoom.value = Math.min(20, mapZoom.value + 1);
+}
+
+function mapZoomOut() {
+  mapZoom.value = Math.max(3, mapZoom.value - 1);
+}
+
+function onMapWheel(e) {
+  e.preventDefault();
+  if (e.deltaY < 0) mapZoomIn();
+  else mapZoomOut();
 }
 
 function closeLightbox() {
   lightboxImg.value = null;
   showMapPreview.value = false;
+  mapPreviewPinned.value = false;
+  if (mapPreviewCloseTimer) {
+    clearTimeout(mapPreviewCloseTimer);
+    mapPreviewCloseTimer = null;
+  }
 }
 
 function openLightbox(img) {
@@ -420,18 +462,24 @@ function openLightbox(img) {
   lightboxIndex.value = images.value.findIndex(i => i._id === img._id);
   lbPillsDismissed.value = false;
   showMapPreview.value = false;
+  mapPreviewPinned.value = false;
+  mapZoom.value = 13;
 }
 function lbPrev() {
   lightboxIndex.value = (lightboxIndex.value - 1 + images.value.length) % images.value.length;
   lightboxImg.value = images.value[lightboxIndex.value];
   lbPillsDismissed.value = false;
   showMapPreview.value = false;
+  mapPreviewPinned.value = false;
+  mapZoom.value = 13;
 }
 function lbNext() {
   lightboxIndex.value = (lightboxIndex.value + 1) % images.value.length;
   lightboxImg.value = images.value[lightboxIndex.value];
   lbPillsDismissed.value = false;
   showMapPreview.value = false;
+  mapPreviewPinned.value = false;
+  mapZoom.value = 13;
 }
 
 const lockedUntilFormatted = computed(() => {
@@ -855,102 +903,76 @@ const submitPin = async () => {
 }
 
 .thumb-card {
-  aspect-ratio: 1;
   border-radius: var(--radius);
   overflow: hidden;
   cursor: pointer;
-  background: var(--color-surface-2);
-  transition: transform 0.2s;
-  position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
 }
-.thumb-card:hover { transform: scale(1.02); }
-.thumb-card img {
+.thumb-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+  box-shadow: var(--shadow);
+}
+
+.thumb-media-wrap {
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--color-surface-2);
+  overflow: hidden;
+}
+
+.thumb-media-wrap img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
-.thumb-desc {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 0.3rem 0.5rem;
-  background: rgba(0,0,0,0.6);
-  color: rgba(255,255,255,0.92);
-  font-size: 0.7rem;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
-/* ── Thumbnail EXIF pill badges ── */
-.thumb-pills {
-  position: absolute;
-  top: 0.4rem;
-  left: 50%;
-  transform: translateX(-50%);
+.thumb-meta {
   display: flex;
-  flex-wrap: nowrap;
+  flex-direction: column;
   gap: 0.25rem;
-  align-items: center;
-  justify-content: center;
-  max-width: calc(100% - 0.8rem);
-  overflow-x: auto;
-  scrollbar-width: none;
-  z-index: 4;
-  pointer-events: auto;
+  padding: 0.5rem 0.625rem 0.625rem;
+  background: color-mix(in srgb, var(--color-surface) 92%, #000 8%);
 }
-.thumb-pills::-webkit-scrollbar { display: none; }
 
-.thumb-pill {
-  display: inline-flex;
+.thumb-meta-row {
+  display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.18rem 0.5rem;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.62);
-  backdrop-filter: blur(6px);
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 0.65rem;
-  font-weight: 500;
-  line-height: 1.4;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.thumb-meta-row-desc {
+  margin-top: 0.1rem;
+}
+
+.thumb-meta-icon {
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+
+.thumb-meta-text {
+  color: var(--color-text);
+  font-size: 0.72rem;
+  line-height: 1.35;
   white-space: nowrap;
-  pointer-events: none;
-  border: 1px solid rgba(255,255,255,0.12);
-}
-
-.thumb-pill-loc {
-  color: #a5f3fc;
-  border-color: rgba(165, 243, 252, 0.25);
-  background: rgba(0, 50, 80, 0.62);
-  max-width: 160px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.thumb-pill-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.75);
-  cursor: pointer;
-  flex-shrink: 0;
-  padding: 0;
-  transition: background 0.15s, color 0.15s;
-  pointer-events: auto;
-}
-.thumb-pill-close:hover {
-  background: rgba(220, 50, 50, 0.7);
-  color: #fff;
-  border-color: rgba(220, 50, 50, 0.5);
+.thumb-meta-text-desc {
+  color: var(--color-muted);
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ── Lightbox ── */
@@ -1106,20 +1128,80 @@ const submitPin = async () => {
 .lb-map-overlay {
   position: absolute;
   inset: 8%;
-  background: rgba(0, 0, 0, 0.9);
-  border: 1px solid rgba(255,255,255,0.2);
+  background: linear-gradient(160deg, rgba(9, 9, 13, 0.88), rgba(26, 27, 34, 0.82));
+  border: 1px solid rgba(169, 175, 191, 0.32);
   border-radius: 12px;
   overflow: hidden;
   z-index: 8;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+  box-shadow: 0 14px 34px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.25) inset;
+  pointer-events: auto;
+}
+
+.lb-map-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(13, 111, 118, 0.36), transparent 46%),
+    radial-gradient(circle at 82% 84%, rgba(60, 45, 99, 0.36), transparent 44%),
+    linear-gradient(145deg, rgba(26, 27, 34, 0.22), rgba(9, 9, 13, 0.28));
+  opacity: 0.7;
+  mix-blend-mode: screen;
+}
+
+.lb-map-toolbar {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 2;
+  background: rgba(26, 27, 34, 0.78);
+  border: 1px solid rgba(169, 175, 191, 0.38);
+  border-radius: 999px;
+  padding: 0.2rem;
+  backdrop-filter: blur(7px);
+}
+
+.lb-map-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(60, 45, 99, 0.55);
+  color: #e9edf8;
+  font-size: 0.95rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.lb-map-btn:hover { background: rgba(13, 111, 118, 0.62); }
+
+.lb-map-btn-close {
+  background: rgba(132, 39, 71, 0.58);
+}
+.lb-map-btn-close:hover {
+  background: rgba(175, 48, 95, 0.74);
+}
+
+.lb-map-zoom {
+  color: #d9deea;
+  font-size: 0.72rem;
+  width: 1.6rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .lb-map-frame {
   width: 100%;
   height: 100%;
   border: none;
-  opacity: 0.9;
+  opacity: 0.76;
+  filter: brightness(0.5) contrast(1.16) saturate(0.66) hue-rotate(176deg);
 }
 
 .lb-nav {
