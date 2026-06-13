@@ -221,6 +221,8 @@
     "downloadFolder": "Lataa kansio (.zip)",
     "zipping": "Pakataan…",
     "zipError": "ZIP-lataus epäonnistui. Yritä uudelleen.",
+    "showInfo": "Näytä tiedot",
+    "mapPreview": "Näytä kartta (hover)",
     "openOnMap": "Avaa kartalla",
     "infoSectionFile": "Tiedosto",
     "infoSectionExif": "Kuvatiedot",

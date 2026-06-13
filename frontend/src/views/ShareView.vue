@@ -160,7 +160,7 @@
 
     <!-- Lightbox -->
     <Teleport to="body">
-      <div v-if="lightboxImg" class="lightbox" @click.self="lightboxImg = null" @keydown.esc="lightboxImg = null" tabindex="-1">
+      <div v-if="lightboxImg" class="lightbox" @click.self="closeLightbox" @keydown.esc="closeLightbox" tabindex="-1">
         <div class="lb-layout">
           <!-- Media area -->
           <div class="lb-media">
@@ -200,8 +200,27 @@
                 <X :size="10" />
               </button>
             </div>
+            <button
+              v-else
+              class="lb-pill-toggle"
+              @click.stop="lbPillsDismissed = false"
+              :title="t('shareView.showInfo')"
+            >
+              <Eye :size="13" />
+              {{ t('shareView.showInfo') }}
+            </button>
+
+            <div v-if="showMapPreview && mapEmbedUrl" class="lb-map-overlay">
+              <iframe
+                class="lb-map-frame"
+                :src="mapEmbedUrl"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                title="Map preview"
+              />
+            </div>
             <div class="lb-counter" v-if="images.length > 1">{{ lightboxIndex + 1 }} / {{ images.length }}</div>
-            <button class="lb-close" @click="lightboxImg = null"><X :size="20" /></button>
+            <button class="lb-close" @click="closeLightbox"><X :size="20" /></button>
           </div>
 
           <!-- Info sidebar -->
@@ -282,12 +301,15 @@
                   </div>
                   <div class="lb-row">
                     <span class="lb-key" />
-                    <a
-                      class="lb-maps-link"
-                      :href="`https://www.google.com/maps?q=${lightboxImg.exif.latitude},${lightboxImg.exif.longitude}`"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >{{ t('shareView.openOnMap') }} ↗</a>
+                    <button
+                      class="lb-map-preview-trigger"
+                      type="button"
+                      @mouseenter="showMapPreview = true"
+                      @mouseleave="showMapPreview = false"
+                      @focus="showMapPreview = true"
+                      @blur="showMapPreview = false"
+                      @click.stop="toggleMapPreview"
+                    >{{ t('shareView.mapPreview') }}</button>
                   </div>
                 </div>
               </template>
@@ -302,7 +324,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { XCircle, Lock, X, Tv, Play, Pause, ChevronLeft, ChevronRight, Download, FolderDown, Camera, MapPin, Calendar, CalendarDays, Clock } from 'lucide-vue-next';
+import { XCircle, Lock, X, Tv, Play, Pause, ChevronLeft, ChevronRight, Download, FolderDown, Camera, MapPin, Calendar, CalendarDays, Clock, Eye } from 'lucide-vue-next';
 import { useRoute } from 'vue-router';
 import api from '../services/api';
 
@@ -330,6 +352,17 @@ const dismissedPills = ref(new Set());
 function exifDate(img) {
   const raw = img?.exif?.DateTimeOriginal;
   if (!raw) return null;
+
+  if (raw instanceof Date) {
+    return raw.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  // Handles ISO-like strings from backend serialization
+  const isoDate = new Date(raw);
+  if (!Number.isNaN(isoDate.getTime())) {
+    return isoDate.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
   const str = String(raw);
   const m = str.match(/^(\d{4}):(\d{2}):(\d{2})/);
   if (m) {
@@ -344,6 +377,16 @@ function exifDate(img) {
 function exifTime(img) {
   const raw = img?.exif?.DateTimeOriginal;
   if (!raw) return null;
+
+  if (raw instanceof Date) {
+    return raw.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  const isoDate = new Date(raw);
+  if (!Number.isNaN(isoDate.getTime())) {
+    return isoDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
   const str = String(raw);
   const m = str.match(/^\d{4}:\d{2}:\d{2} (\d{2}):(\d{2})/);
   return m ? `${m[1]}:${m[2]}` : null;
@@ -353,21 +396,42 @@ function exifTime(img) {
 const lightboxImg = ref(null);
 const lightboxIndex = ref(0);
 const lbPillsDismissed = ref(false);
+const showMapPreview = ref(false);
+
+const mapEmbedUrl = computed(() => {
+  const lat = lightboxImg.value?.exif?.latitude;
+  const lon = lightboxImg.value?.exif?.longitude;
+  if (lat === undefined || lon === undefined) return '';
+  return `https://maps.google.com/maps?q=${lat},${lon}&z=13&output=embed`;
+});
+
+function toggleMapPreview() {
+  if (!mapEmbedUrl.value) return;
+  showMapPreview.value = !showMapPreview.value;
+}
+
+function closeLightbox() {
+  lightboxImg.value = null;
+  showMapPreview.value = false;
+}
 
 function openLightbox(img) {
   lightboxImg.value = img;
   lightboxIndex.value = images.value.findIndex(i => i._id === img._id);
   lbPillsDismissed.value = false;
+  showMapPreview.value = false;
 }
 function lbPrev() {
   lightboxIndex.value = (lightboxIndex.value - 1 + images.value.length) % images.value.length;
   lightboxImg.value = images.value[lightboxIndex.value];
   lbPillsDismissed.value = false;
+  showMapPreview.value = false;
 }
 function lbNext() {
   lightboxIndex.value = (lightboxIndex.value + 1) % images.value.length;
   lightboxImg.value = images.value[lightboxIndex.value];
   lbPillsDismissed.value = false;
+  showMapPreview.value = false;
 }
 
 const lockedUntilFormatted = computed(() => {
@@ -518,7 +582,7 @@ function onKeyDown(e) {
   if (lightboxImg.value && !tvMode.value) {
     if (e.key === 'ArrowRight') { e.preventDefault(); lbNext(); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); lbPrev(); }
-    else if (e.key === 'Escape') lightboxImg.value = null;
+    else if (e.key === 'Escape') closeLightbox();
     return;
   }
   if (!tvMode.value) return;
@@ -824,16 +888,21 @@ const submitPin = async () => {
 /* ── Thumbnail EXIF pill badges ── */
 .thumb-pills {
   position: absolute;
-  bottom: 0.4rem;
-  left: 0.4rem;
+  top: 0.4rem;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.25rem;
   align-items: center;
+  justify-content: center;
   max-width: calc(100% - 0.8rem);
+  overflow-x: auto;
+  scrollbar-width: none;
   z-index: 4;
   pointer-events: auto;
 }
+.thumb-pills::-webkit-scrollbar { display: none; }
 
 .thumb-pill {
   display: inline-flex;
@@ -1016,6 +1085,43 @@ const submitPin = async () => {
   border-color: rgba(200, 40, 40, 0.5);
 }
 
+.lb-pill-toggle {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(8px);
+  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255,255,255,0.2);
+  font-size: 0.75rem;
+  cursor: pointer;
+  z-index: 7;
+}
+
+.lb-map-overlay {
+  position: absolute;
+  inset: 8%;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  z-index: 8;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+  pointer-events: none;
+}
+
+.lb-map-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  opacity: 0.9;
+}
+
 .lb-nav {
   position: absolute;
   top: 50%;
@@ -1127,6 +1233,16 @@ const submitPin = async () => {
   text-decoration: none;
 }
 .lb-maps-link:hover { text-decoration: underline; }
+
+.lb-map-preview-trigger {
+  background: none;
+  border: none;
+  color: #818cf8;
+  font-size: 0.775rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
 
 /* ── TV Slideshow ── */
 .tv-overlay {

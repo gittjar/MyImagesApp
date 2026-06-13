@@ -221,6 +221,8 @@
     "downloadFolder": "Download folder (.zip)",
     "zipping": "Zipping…",
     "zipError": "ZIP download failed. Please try again.",
+    "showInfo": "Show info",
+    "mapPreview": "Show map (hover)",
     "openOnMap": "Open on map",
     "infoSectionFile": "File info",
     "infoSectionExif": "Photo details",
