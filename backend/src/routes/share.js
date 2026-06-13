@@ -5,6 +5,7 @@ const {
   createShare,
   getShareInfo,
   getShareImages,
+  downloadSharedFolderZip,
   listShares,
   deleteShare
 } = require('../controllers/shareController');
@@ -23,6 +24,7 @@ const shareLimiter = rateLimit({
 // Public (no JWT needed) — route: /share/:userId/:slug
 router.get('/:userId/:slug', shareLimiter, getShareInfo);
 router.post('/:userId/:slug/images', shareLimiter, getShareImages);
+router.post('/:userId/:slug/download-folder', shareLimiter, downloadSharedFolderZip);
 
 // Authenticated
 router.use(authenticateJWT);

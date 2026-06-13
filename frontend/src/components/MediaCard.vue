@@ -1,5 +1,11 @@
 <template>
-  <div class="card" :data-image-id="item._id" @click="openLightbox">
+  <div class="card" :data-image-id="item._id" :class="{ 'card-selected': selected }" @click="onCardClick">
+    <!-- Selection checkbox -->
+    <div class="select-check" @click.stop="emit('select', item._id)">
+      <span class="check-box" :class="{ checked: selected }">
+        <Check v-if="selected" :size="11" />
+      </span>
+    </div>
     <div class="thumb-wrap">
       <!-- Video thumbnail -->
       <div v-if="item.mediaType === 'video'" class="video-thumb">
@@ -237,7 +243,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Play, Pause, FolderInput, Images, Folder, Share2, Trash2, X, Pencil, Maximize2, Minimize2, MapPin, Calendar, Tag, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { Play, Pause, FolderInput, Images, Folder, Share2, Trash2, X, Pencil, Maximize2, Minimize2, MapPin, Calendar, Tag, ChevronLeft, ChevronRight, Check } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 
 const { t } = useI18n();
@@ -247,8 +253,11 @@ const props = defineProps({
   folders: { type: Array, default: () => [] },
   items: { type: Array, default: () => [] },
   startIndex: { type: Number, default: -1 },
+  selected: { type: Boolean, default: false },
+  selectionMode: { type: Boolean, default: false },
+  forceOpen: { type: Boolean, default: false },
 });
-const emit = defineEmits(['delete', 'move', 'share']);
+const emit = defineEmits(['delete', 'move', 'share', 'select']);
 
 const imageStore = useImagesStore();
 
@@ -329,6 +338,11 @@ const openLightbox = () => {
   currentIdx.value = props.startIndex >= 0 ? props.startIndex : 0;
   lightbox.value = true;
 };
+const onCardClick = () => {
+  if (props.selectionMode) emit('select', props.item._id);
+  else openLightbox();
+};
+watch(() => props.forceOpen, (v) => { if (v) openLightbox(); });
 
 const move = (folderId) => {
   showMoveMenu.value = false;
@@ -923,4 +937,38 @@ const formatExposureProgram = (v) => EXPOSURE_PROGRAM[v] ?? String(v);
     gap: 0.875rem;
   }
 }
+
+/* ── Selection ── */
+.select-check {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.4rem;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.card:hover .select-check,
+.card.card-selected .select-check { opacity: 1; }
+
+.check-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.48);
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  color: #fff;
+  transition: background 0.15s, border-color 0.15s;
+  backdrop-filter: blur(4px);
+}
+.check-box.checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.card.card-selected {
+  box-shadow: 0 0 0 3px var(--color-primary), var(--shadow);
+}
+.card.card-selected:hover { transform: none; }
 </style>

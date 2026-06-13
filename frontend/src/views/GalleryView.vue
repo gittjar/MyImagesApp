@@ -222,13 +222,14 @@
                 v-else
                 class="drag-item"
                 :class="{ 'drag-item-dragging': dragSrcIdx === slot.origIdx }"
-                draggable="true"
+                :draggable="!selectionMode"
                 @dragstart="onDragStart($event, slot.origIdx)"
                 @dragover.prevent="onDragOverItem($event, slot.origIdx)"
                 @dragend="onDragEnd"
                 @drop.prevent="onDropItem($event)"
+                @contextmenu.prevent="handleContextMenu($event, slot.item)"
               >
-                <div class="drag-handle" :title="t('gallery.dragToReorder')">
+                <div v-show="!selectionMode" class="drag-handle" :title="t('gallery.dragToReorder')">
                   <GripVertical :size="16" />
                 </div>
                 <MediaCard
@@ -236,9 +237,13 @@
                   :items="imageStore.images"
                   :start-index="slot.origIdx"
                   :folders="folderStore.folders"
+                  :selected="selectedIds.has(slot.item._id)"
+                  :selection-mode="selectionMode"
+                  :force-open="forceOpenId === slot.item._id"
                   @delete="handleDelete"
                   @move="handleMove"
                   @share="handleShare"
+                  @select="toggleSelect"
                 />
               </div>
             </template>
@@ -323,6 +328,95 @@
       </div>
     </Transition>
 
+    <!-- ── Bulk action bar ── -->
+    <Teleport to="body">
+      <Transition name="bulk-slide">
+        <div v-if="selectionMode" class="bulk-bar">
+          <span class="bulk-count">{{ selectedIds.size }} {{ t('gallery.selected') }}</span>
+          <button class="bulk-btn btn-ghost" @click="selectAll" :disabled="selectedIds.size >= imageStore.images.length">
+            {{ t('gallery.selectAll') }}
+          </button>
+          <div class="bulk-vsep" />
+          <button class="bulk-action" @click="bulkMove" :title="t('gallery.bulkMove')">
+            <FolderInput :size="16" />
+          </button>
+          <button class="bulk-action" @click="bulkShare" :title="t('gallery.bulkShare')">
+            <Share2 :size="16" />
+          </button>
+          <button class="bulk-action bulk-danger" @click="bulkDelete" :title="t('gallery.bulkDelete')">
+            <Trash2 :size="16" />
+          </button>
+          <button class="btn-icon bulk-close" @click="clearSelection" :title="t('gallery.deselectAll')">
+            <X :size="15" />
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ── Context menu ── -->
+    <Teleport to="body">
+      <div
+        v-if="ctxMenu.visible"
+        class="ctx-menu"
+        :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }"
+        @click.stop
+      >
+        <button class="ctx-item" @click="ctxOpen">
+          <ExternalLink :size="14" /> {{ t('gallery.open') }}
+        </button>
+        <div class="ctx-sep" />
+        <button class="ctx-item" :class="{ 'ctx-checked': selectedIds.has(ctxMenu.item?._id) }" @click="ctxToggleSelect">
+          <Check v-if="selectedIds.has(ctxMenu.item?._id)" :size="14" />
+          <span v-else class="ctx-no-icon" />
+          {{ selectedIds.has(ctxMenu.item?._id) ? t('gallery.deselect') : t('gallery.select') }}
+        </button>
+        <button class="ctx-item" @click="ctxSelectAll">
+          <span class="ctx-no-icon" /> {{ t('gallery.selectAll') }}
+        </button>
+        <div class="ctx-sep" />
+        <button class="ctx-item" @click="ctxShare">
+          <Share2 :size="14" /> {{ t('media.share') }}
+        </button>
+        <button class="ctx-item" @click="ctxMove">
+          <FolderInput :size="14" /> {{ t('media.moveToFolder') }}
+        </button>
+        <div class="ctx-sep" />
+        <button class="ctx-item ctx-danger" @click="ctxDelete">
+          <Trash2 :size="14" /> {{ t('media.delete') }}
+        </button>
+      </div>
+    </Teleport>
+
+    <!-- ── Bulk move modal ── -->
+    <Teleport to="body">
+      <div v-if="showBulkMove" class="overlay" @click.self="showBulkMove = false">
+        <div class="folder-modal bm-modal">
+          <h3>{{ t('gallery.bulkMoveTitle') }}</h3>
+          <p class="bm-hint">{{ t('gallery.bulkMoveHint', { n: selectedIds.size }) }}</p>
+          <div class="bm-tree">
+            <button class="bm-item" :class="{ 'bm-active': bulkMoveTarget === null }" @click="bulkMoveTarget = null">
+              <Images :size="14" /> {{ t('upload.noFolder') }}
+            </button>
+            <button
+              v-for="item in bulkMoveFlatTree"
+              :key="item._id"
+              class="bm-item"
+              :class="{ 'bm-active': bulkMoveTarget === item._id }"
+              :style="{ paddingLeft: (0.75 + item.depth * 1.1) + 'rem' }"
+              @click="bulkMoveTarget = item._id"
+            >
+              <Folder :size="14" />
+              {{ item.name }}
+            </button>
+          </div>
+          <div class="folder-modal-actions">
+            <button class="btn-ghost" @click="showBulkMove = false">{{ t('gallery.cancel') }}</button>
+            <button class="btn-primary" @click="confirmBulkMove">{{ t('gallery.bulkMoveConfirm') }}</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- ── Mobile FAB (floating action button) ── -->
     <div class="upload-fab-wrap">
       <button class="upload-fab" @click="showUpload = true" :title="t('gallery.upload')">
@@ -337,9 +431,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload, ChevronLeft, ChevronRight, Camera, GripVertical, ImagePlus, Check, AlertTriangle } from 'lucide-vue-next';
+import { Images, Folder, Pencil, X, FolderPlus, Plus, Link2, Upload, ChevronLeft, ChevronRight, Camera, GripVertical, ImagePlus, Check, AlertTriangle, FolderInput, Share2, Trash2, ExternalLink } from 'lucide-vue-next';
 import { useImagesStore } from '../stores/images';
 import { useFolderStore } from '../stores/folders';
 import { useConfirm } from '../composables/useConfirm';
@@ -369,6 +463,109 @@ const shareContext = ref({ scope: 'all', folderId: null, imageIds: [], previewIt
 const newFolderName = ref('');
 const folderError = ref('');
 const totalAll = ref(0);
+
+// ── Multi-selection ──────────────────────────────────────────────────────────────────────────────
+const selectedIds = ref(new Set());
+const selectionMode = computed(() => selectedIds.value.size > 0);
+const forceOpenId = ref(null);
+
+const toggleSelect = (id) => {
+  const s = new Set(selectedIds.value);
+  if (s.has(id)) s.delete(id); else s.add(id);
+  selectedIds.value = s;
+};
+const selectAll = () => { selectedIds.value = new Set(imageStore.images.map(img => img._id)); };
+const clearSelection = () => { selectedIds.value = new Set(); };
+// Clear selection when navigating to a different folder
+watch(() => imageStore.activeFolder, clearSelection);
+
+// ── Context menu ─────────────────────────────────────────────────────────────────────────────
+const ctxMenu = ref({ visible: false, x: 0, y: 0, item: null });
+
+const handleContextMenu = (e, item) => {
+  ctxMenu.value = {
+    visible: true,
+    x: Math.min(e.clientX, window.innerWidth - 208),
+    y: Math.min(e.clientY, window.innerHeight - 272),
+    item,
+  };
+};
+const closeCtxMenu = () => { ctxMenu.value.visible = false; };
+const onCtxDocClick = () => closeCtxMenu();
+const onCtxKeydown = (e) => { if (e.key === 'Escape') closeCtxMenu(); };
+
+const ctxOpen = () => {
+  const id = ctxMenu.value.item?._id;
+  closeCtxMenu();
+  forceOpenId.value = id ?? null;
+  nextTick(() => { forceOpenId.value = null; });
+};
+const ctxToggleSelect = () => { if (ctxMenu.value.item) toggleSelect(ctxMenu.value.item._id); closeCtxMenu(); };
+const ctxSelectAll = () => { selectAll(); closeCtxMenu(); };
+const ctxShare = () => { const item = ctxMenu.value.item; closeCtxMenu(); if (item) handleShare(item); };
+const ctxMove = () => {
+  const item = ctxMenu.value.item;
+  closeCtxMenu();
+  if (!item) return;
+  if (!selectedIds.value.has(item._id)) {
+    const s = new Set(selectedIds.value); s.add(item._id); selectedIds.value = s;
+  }
+  bulkMoveTarget.value = imageStore.activeFolder ?? null;
+  showBulkMove.value = true;
+};
+const ctxDelete = async () => { const item = ctxMenu.value.item; closeCtxMenu(); if (item) await handleDelete(item._id); };
+
+// ── Bulk actions ─────────────────────────────────────────────────────────────────────────────
+const showBulkMove = ref(false);
+const bulkMoveTarget = ref(null);
+
+const buildBulkFlatTree = (all, parentId = null, depth = 0) =>
+  all
+    .filter(f => (f.parent ? f.parent.toString() : null) === (parentId ? parentId.toString() : null))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap(f => [{ ...f, depth }, ...buildBulkFlatTree(all, f._id, depth + 1)]);
+
+const bulkMoveFlatTree = computed(() => buildBulkFlatTree(folderStore.folders));
+
+const bulkMove = () => {
+  bulkMoveTarget.value = imageStore.activeFolder ?? null;
+  showBulkMove.value = true;
+};
+
+const confirmBulkMove = async () => {
+  showBulkMove.value = false;
+  const ids = [...selectedIds.value];
+  const target = bulkMoveTarget.value;
+  for (const id of ids) {
+    await imageStore.updateImage(id, { folder: target || '' });
+    imageStore.images = imageStore.images.filter(img => img._id !== id);
+    imageStore.total = Math.max(0, imageStore.total - 1);
+  }
+  await folderStore.fetchFolders();
+  clearSelection();
+  const dest = target ? folderStore.folders.find(f => f._id === target)?.name : t('media.root');
+  showToast(`${ids.length} ${t('gallery.itemsMoved')} → "${dest}"`);
+};
+
+const bulkShare = () => {
+  shareContext.value = { scope: 'selection', folderId: null, imageIds: [...selectedIds.value], previewItem: null };
+  showShare.value = true;
+};
+
+const bulkDelete = async () => {
+  const ids = [...selectedIds.value];
+  const ok = await ask({
+    title: t('gallery.bulkDelete'),
+    message: t('gallery.bulkDeleteConfirm', { n: ids.length }),
+    confirmLabel: t('gallery.bulkDelete'),
+    danger: true,
+  });
+  if (!ok) return;
+  for (const id of ids) await imageStore.deleteImage(id);
+  clearSelection();
+  showToast(`${ids.length} ${t('gallery.itemsDeleted')}`);
+  if (!imageStore.activeFolder) totalAll.value = imageStore.total + folderStore.folders.length;
+};
 
 // ── Inline drag-drop upload ──
 const fileInputRef = ref(null);
@@ -666,12 +863,16 @@ onMounted(async () => {
   window.addEventListener('dragover', onWindowDragOver);
   window.addEventListener('dragleave', onWindowDragLeave);
   window.addEventListener('drop', onWindowDrop);
+  document.addEventListener('click', onCtxDocClick);
+  document.addEventListener('keydown', onCtxKeydown);
 });
 
 onUnmounted(() => {
   window.removeEventListener('dragover', onWindowDragOver);
   window.removeEventListener('dragleave', onWindowDragLeave);
   window.removeEventListener('drop', onWindowDrop);
+  document.removeEventListener('click', onCtxDocClick);
+  document.removeEventListener('keydown', onCtxKeydown);
   if (uploadDoneTimer) clearTimeout(uploadDoneTimer);
 });
 
@@ -1400,6 +1601,154 @@ const onUploaded = async () => {
   .inline-drop-zone { display: none; }
   /* Progress panel on mobile — bottom, wider */
   .progress-panel { right: 0.75rem; bottom: 5rem; width: calc(100vw - 1.5rem); max-width: 320px; }
+}
+
+/* ── Bulk action bar ── */
+.bulk-bar {
+  position: fixed;
+  bottom: 1.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 450;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+  user-select: none;
+}
+.bulk-count {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+  padding-right: 0.25rem;
+}
+.bulk-btn {
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  color: var(--color-primary);
+}
+.bulk-vsep {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border);
+  margin: 0 0.25rem;
+  flex-shrink: 0;
+}
+.bulk-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.bulk-action:hover { background: var(--color-surface-2); color: var(--color-primary); }
+.bulk-danger:hover { color: var(--color-danger) !important; }
+.bulk-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-muted);
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.bulk-close:hover { background: var(--color-surface-2); color: var(--color-text); }
+
+.bulk-slide-enter-active, .bulk-slide-leave-active { transition: all 0.2s ease; }
+.bulk-slide-enter-from, .bulk-slide-leave-to { opacity: 0; transform: translateX(-50%) translateY(0.75rem); }
+
+/* ── Context menu ── */
+.ctx-menu {
+  position: fixed;
+  z-index: 600;
+  min-width: 190px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  padding: 0.35rem 0;
+  backdrop-filter: blur(8px);
+  user-select: none;
+}
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.ctx-item:hover { background: var(--color-surface-2); }
+.ctx-item.ctx-checked { color: var(--color-primary); }
+.ctx-danger { color: var(--color-danger) !important; }
+.ctx-danger:hover { background: color-mix(in srgb, var(--color-danger) 12%, transparent) !important; }
+.ctx-sep {
+  height: 1px;
+  background: var(--color-border);
+  margin: 0.25rem 0;
+}
+.ctx-no-icon {
+  display: inline-block;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+/* ── Bulk move modal ── */
+.bm-modal { max-width: 400px; }
+.bm-hint { font-size: 0.8125rem; color: var(--color-muted); margin-top: -0.25rem; }
+.bm-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.25rem;
+}
+.bm-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.4rem 0.75rem;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.bm-item:hover { background: var(--color-surface-2); }
+.bm-active {
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent) !important;
+  color: var(--color-primary);
 }
 </style>
 
