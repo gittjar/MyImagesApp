@@ -223,6 +223,7 @@
     "zipError": "ZIP download failed. Please try again.",
     "showInfo": "Show info",
     "mapPreview": "Show map (hover)",
+    "mapModeToggle": "Toggle satellite/street map",
     "openOnMap": "Open on map",
     "infoSectionFile": "File info",
     "infoSectionExif": "Photo details",

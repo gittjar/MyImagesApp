@@ -209,6 +209,9 @@
               @mouseleave="closeMapPreview"
             >
               <div class="lb-map-toolbar">
+                <button class="lb-map-btn lb-map-btn-mode" type="button" @click.stop="toggleMapMode" :title="t('shareView.mapModeToggle')">
+                  {{ mapMode === 'satellite' ? 'SAT' : 'MAP' }}
+                </button>
                 <button class="lb-map-btn" type="button" @click.stop="mapZoomOut">−</button>
                 <span class="lb-map-zoom">{{ mapZoom }}</span>
                 <button class="lb-map-btn" type="button" @click.stop="mapZoomIn">+</button>
@@ -399,14 +402,20 @@ const lbPillsDismissed = ref(false);
 const showMapPreview = ref(false);
 const mapPreviewPinned = ref(false);
 const mapZoom = ref(13);
+const mapMode = ref('satellite'); // 'satellite' | 'street'
 let mapPreviewCloseTimer = null;
 
 const mapEmbedUrl = computed(() => {
   const lat = lightboxImg.value?.exif?.latitude;
   const lon = lightboxImg.value?.exif?.longitude;
   if (lat === undefined || lon === undefined) return '';
-  return `https://maps.google.com/maps?q=${lat},${lon}&z=${mapZoom.value}&output=embed`;
+  const t = mapMode.value === 'satellite' ? 'k' : 'm';
+  return `https://maps.google.com/maps?q=${lat},${lon}&t=${t}&z=${mapZoom.value}&output=embed`;
 });
+
+function toggleMapMode() {
+  mapMode.value = mapMode.value === 'satellite' ? 'street' : 'satellite';
+}
 
 function openMapPreview() {
   if (mapPreviewCloseTimer) {
@@ -464,6 +473,7 @@ function openLightbox(img) {
   showMapPreview.value = false;
   mapPreviewPinned.value = false;
   mapZoom.value = 13;
+  mapMode.value = 'satellite';
 }
 function lbPrev() {
   lightboxIndex.value = (lightboxIndex.value - 1 + images.value.length) % images.value.length;
@@ -472,6 +482,7 @@ function lbPrev() {
   showMapPreview.value = false;
   mapPreviewPinned.value = false;
   mapZoom.value = 13;
+  mapMode.value = 'satellite';
 }
 function lbNext() {
   lightboxIndex.value = (lightboxIndex.value + 1) % images.value.length;
@@ -480,6 +491,7 @@ function lbNext() {
   showMapPreview.value = false;
   mapPreviewPinned.value = false;
   mapZoom.value = 13;
+  mapMode.value = 'satellite';
 }
 
 const lockedUntilFormatted = computed(() => {
@@ -1128,12 +1140,12 @@ const submitPin = async () => {
 .lb-map-overlay {
   position: absolute;
   inset: 8%;
-  background: linear-gradient(160deg, rgba(9, 9, 13, 0.88), rgba(26, 27, 34, 0.82));
-  border: 1px solid rgba(169, 175, 191, 0.32);
+  background: rgba(10, 12, 16, 0.44);
+  border: 1px solid rgba(190, 197, 210, 0.46);
   border-radius: 12px;
   overflow: hidden;
   z-index: 8;
-  box-shadow: 0 14px 34px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.25) inset;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.42), 0 0 0 1px rgba(255,255,255,0.06) inset;
   pointer-events: auto;
 }
 
@@ -1143,11 +1155,11 @@ const submitPin = async () => {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 16%, rgba(13, 111, 118, 0.36), transparent 46%),
-    radial-gradient(circle at 82% 84%, rgba(60, 45, 99, 0.36), transparent 44%),
-    linear-gradient(145deg, rgba(26, 27, 34, 0.22), rgba(9, 9, 13, 0.28));
-  opacity: 0.7;
-  mix-blend-mode: screen;
+    radial-gradient(circle at 18% 16%, rgba(13, 111, 118, 0.12), transparent 52%),
+    radial-gradient(circle at 82% 84%, rgba(60, 45, 99, 0.14), transparent 50%),
+    linear-gradient(145deg, rgba(7, 9, 13, 0.16), rgba(9, 10, 14, 0.22));
+  opacity: 0.5;
+  mix-blend-mode: normal;
 }
 
 .lb-map-toolbar {
@@ -1158,8 +1170,8 @@ const submitPin = async () => {
   align-items: center;
   gap: 0.25rem;
   z-index: 2;
-  background: rgba(26, 27, 34, 0.78);
-  border: 1px solid rgba(169, 175, 191, 0.38);
+  background: rgba(20, 23, 31, 0.72);
+  border: 1px solid rgba(176, 184, 198, 0.58);
   border-radius: 999px;
   padding: 0.2rem;
   backdrop-filter: blur(7px);
@@ -1170,7 +1182,7 @@ const submitPin = async () => {
   height: 26px;
   border-radius: 50%;
   border: none;
-  background: rgba(60, 45, 99, 0.55);
+  background: rgba(58, 66, 86, 0.72);
   color: #e9edf8;
   font-size: 0.95rem;
   line-height: 1;
@@ -1179,13 +1191,21 @@ const submitPin = async () => {
   justify-content: center;
   cursor: pointer;
 }
-.lb-map-btn:hover { background: rgba(13, 111, 118, 0.62); }
+.lb-map-btn:hover { background: rgba(13, 111, 118, 0.72); }
+
+.lb-map-btn-mode {
+  width: 40px;
+  font-size: 0.63rem;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  background: rgba(13, 111, 118, 0.52);
+}
 
 .lb-map-btn-close {
-  background: rgba(132, 39, 71, 0.58);
+  background: rgba(129, 51, 84, 0.74);
 }
 .lb-map-btn-close:hover {
-  background: rgba(175, 48, 95, 0.74);
+  background: rgba(168, 66, 110, 0.88);
 }
 
 .lb-map-zoom {
@@ -1200,8 +1220,8 @@ const submitPin = async () => {
   width: 100%;
   height: 100%;
   border: none;
-  opacity: 0.76;
-  filter: brightness(0.5) contrast(1.16) saturate(0.66) hue-rotate(176deg);
+  opacity: 0.95;
+  filter: brightness(0.86) contrast(1.04) saturate(0.95) hue-rotate(10deg);
 }
 
 .lb-nav {

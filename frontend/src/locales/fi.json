@@ -223,6 +223,7 @@
     "zipError": "ZIP-lataus epäonnistui. Yritä uudelleen.",
     "showInfo": "Näytä tiedot",
     "mapPreview": "Näytä kartta (hover)",
+    "mapModeToggle": "Vaihda satelliitti/katukartta",
     "openOnMap": "Avaa kartalla",
     "infoSectionFile": "Tiedosto",
     "infoSectionExif": "Kuvatiedot",
