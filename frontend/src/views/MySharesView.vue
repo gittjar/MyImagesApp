@@ -42,6 +42,9 @@
                   <span v-if="s.hasPin" class="badge badge-pin" :title="t('myShares.pinProtected')">
                     <Lock :size="11" /> PIN
                   </span>
+                  <span v-if="visiblePins[s.slug]" class="badge badge-pin-value" :title="t('myShares.pinVisible')">
+                    {{ t('myShares.pinCode') }}: {{ visiblePins[s.slug] }}
+                  </span>
                 </div>
               </td>
 
@@ -70,11 +73,28 @@
                     <template v-if="copiedId === s.id"><Check :size="14" /></template>
                     <template v-else><Copy :size="14" /></template>
                   </button>
+                  <button
+                    v-if="s.hasPin && s.canRevealPin"
+                    class="btn-ghost btn-sm"
+                    @click="togglePin(s)"
+                    :disabled="pinLoadingSlug === s.slug"
+                    :title="visiblePins[s.slug] ? t('myShares.hidePin') : t('myShares.showPin')"
+                  >
+                    <Eye v-if="!visiblePins[s.slug]" :size="14" />
+                    <EyeOff v-else :size="14" />
+                  </button>
+                  <span v-else-if="s.hasPin" class="pin-unavailable" :title="t('myShares.pinUnavailable')">{{ t('myShares.pinUnavailableShort') }}</span>
                   <a class="btn-ghost btn-sm" :href="s.url" target="_blank" rel="noopener" :title="t('myShares.open')">
                     <ExternalLink :size="14" />
                   </a>
-                  <button class="btn-ghost btn-sm danger-btn" @click="remove(s)" :title="t('myShares.delete')">
-                    <Trash2 :size="14" />
+                  <button
+                    class="btn-ghost btn-sm danger-btn"
+                    :class="{ 'danger-confirm': pendingDeleteSlug === s.slug }"
+                    @click="remove(s)"
+                    :title="pendingDeleteSlug === s.slug ? t('myShares.deleteConfirmBtn') : t('myShares.delete')"
+                  >
+                    <template v-if="pendingDeleteSlug === s.slug">{{ t('myShares.deleteConfirmInline') }}</template>
+                    <Trash2 v-else :size="14" />
                   </button>
                 </div>
               </td>
@@ -89,21 +109,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Plus, Share2, Lock, Copy, Check, ExternalLink, Trash2, Images, Folder, Image as ImageIcon } from 'lucide-vue-next';
+import { Plus, Share2, Lock, Copy, Check, ExternalLink, Trash2, Images, Folder, Image as ImageIcon, Eye, EyeOff } from 'lucide-vue-next';
 import Navbar from '../components/Navbar.vue';
 import ShareModal from '../components/ShareModal.vue';
-import { useConfirm } from '../composables/useConfirm';
 import api from '../services/api';
 
 const { t } = useI18n();
-const { ask } = useConfirm();
 
 const shares = ref([]);
 const loading = ref(true);
 const showCreate = ref(false);
 const copiedId = ref(null);
+const visiblePins = ref({});
+const pinLoadingSlug = ref('');
+const pendingDeleteSlug = ref('');
+let pendingDeleteTimer = null;
 
 const fetchShares = async () => {
   loading.value = true;
@@ -116,6 +138,7 @@ const fetchShares = async () => {
 };
 
 onMounted(fetchShares);
+onBeforeUnmount(clearPendingDelete);
 
 const isExpired = (s) => s.expiresAt && new Date(s.expiresAt) < new Date();
 
@@ -140,16 +163,51 @@ const copyUrl = async (s) => {
   setTimeout(() => (copiedId.value = null), 2000);
 };
 
+const togglePin = async (s) => {
+  if (visiblePins.value[s.slug]) {
+    const next = { ...visiblePins.value };
+    delete next[s.slug];
+    visiblePins.value = next;
+    return;
+  }
+  pinLoadingSlug.value = s.slug;
+  try {
+    const { data } = await api.get(`/share/item/${s.id}/pin`);
+    visiblePins.value = { ...visiblePins.value, [s.slug]: data.pin };
+  } catch (err) {
+    alert(err.response?.data?.message || t('myShares.pinRevealFailed'));
+  } finally {
+    pinLoadingSlug.value = '';
+  }
+};
+
+const clearPendingDelete = () => {
+  if (pendingDeleteTimer) {
+    clearTimeout(pendingDeleteTimer);
+    pendingDeleteTimer = null;
+  }
+  pendingDeleteSlug.value = '';
+};
+
 const remove = async (s) => {
-  const ok = await ask({
-    title: t('myShares.deleteTitle'),
-    message: t('myShares.deleteConfirm', { slug: s.slug }),
-    confirmLabel: t('myShares.deleteConfirmBtn'),
-    danger: true
-  });
-  if (!ok) return;
-  await api.delete(`/share/${s.slug}`);
-  shares.value = shares.value.filter((x) => x.id !== s.id);
+  if (pendingDeleteSlug.value !== s.slug) {
+    clearPendingDelete();
+    pendingDeleteSlug.value = s.slug;
+    pendingDeleteTimer = setTimeout(() => {
+      pendingDeleteSlug.value = '';
+      pendingDeleteTimer = null;
+    }, 3000);
+    return;
+  }
+
+  clearPendingDelete();
+  try {
+    await api.delete(`/share/item/${s.id}`);
+    shares.value = shares.value.filter((x) => x.id !== s.id);
+  } catch (err) {
+    alert(err.response?.data?.message || t('myShares.deleteFailed'));
+    await fetchShares();
+  }
 };
 
 const onShareCreated = () => {
@@ -279,6 +337,12 @@ td {
   color: var(--color-primary);
 }
 
+.badge-pin-value {
+  background: color-mix(in srgb, var(--color-primary) 20%, var(--color-surface));
+  color: var(--color-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
 .badge-expired {
   background: color-mix(in srgb, var(--color-danger) 15%, transparent);
   color: var(--color-danger);
@@ -315,10 +379,25 @@ td {
 
 .danger-btn {
   color: var(--color-danger);
+  min-width: 2.25rem;
 }
 
 .danger-btn:hover {
   background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+}
+
+.danger-confirm {
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  border-color: color-mix(in srgb, var(--color-danger) 38%, var(--color-border));
+  color: var(--color-danger);
+  min-width: 8.5rem;
+  justify-content: center;
+}
+
+.pin-unavailable {
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  padding: 0 0.2rem;
 }
 
 @media (max-width: 640px) {

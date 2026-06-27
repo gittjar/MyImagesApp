@@ -170,7 +170,16 @@
     "delete": "Delete",
     "deleteTitle": "Delete share",
     "deleteConfirm": "Delete share \u201c{slug}\u201d? The link will stop working immediately.",
-    "deleteConfirmBtn": "Delete share"
+    "deleteConfirmBtn": "Delete share",
+    "deleteConfirmInline": "Confirm delete",
+    "deleteFailed": "Failed to delete share. The list was refreshed.",
+    "showPin": "Show PIN",
+    "hidePin": "Hide PIN",
+    "pinCode": "PIN",
+    "pinVisible": "PIN visible",
+    "pinUnavailable": "PIN is not revealable for this legacy share",
+    "pinUnavailableShort": "Legacy only",
+    "pinRevealFailed": "PIN cannot be revealed for this share."
   },
   "admin": {
     "title": "Admin Panel",

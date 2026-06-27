@@ -1,11 +1,13 @@
 const bcrypt = require('bcryptjs');
 const archiver = require('archiver');
+const crypto = require('crypto');
 const Share = require('../models/Share');
 const Image = require('../models/Image');
 const Folder = require('../models/Folder');
 
 const PIN_MAX_ATTEMPTS = 5;
 const PIN_LOCK_MS = 60 * 60 * 1000; // 1 hour
+const PIN_CIPHER_ALGO = 'aes-256-gcm';
 
 // Sanitize a user-supplied slug: lowercase, replace spaces/invalid chars with '-', trim dashes
 const sanitizeSlug = (raw) =>
@@ -24,6 +26,46 @@ const sanitizeFilename = (raw, fallback = 'share') => {
     .replace(/\s+/g, ' ')
     .slice(0, 120);
   return cleaned || fallback;
+};
+
+const getPinSecret = () => process.env.SHARE_PIN_SECRET || process.env.JWT_SECRET || '';
+
+const encryptSharePin = (pin) => {
+  const secret = getPinSecret();
+  if (!secret) return null;
+  const key = crypto.createHash('sha256').update(secret).digest();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv(PIN_CIPHER_ALGO, key, iv);
+  const encrypted = Buffer.concat([cipher.update(String(pin), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString('base64')}:${tag.toString('base64')}:${encrypted.toString('base64')}`;
+};
+
+const decryptSharePin = (cipherText) => {
+  if (!cipherText) return null;
+  const secret = getPinSecret();
+  if (!secret) return null;
+  try {
+    const [ivB64, tagB64, dataB64] = String(cipherText).split(':');
+    if (!ivB64 || !tagB64 || !dataB64) return null;
+    const key = crypto.createHash('sha256').update(secret).digest();
+    const iv = Buffer.from(ivB64, 'base64');
+    const tag = Buffer.from(tagB64, 'base64');
+    const encrypted = Buffer.from(dataB64, 'base64');
+    const decipher = crypto.createDecipheriv(PIN_CIPHER_ALGO, key, iv);
+    decipher.setAuthTag(tag);
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    return decrypted.toString('utf8');
+  } catch (_) {
+    return null;
+  }
+};
+
+const buildOwnedShareLookup = (ownerId, identifier) => {
+  if (/^[a-f\d]{24}$/i.test(String(identifier || ''))) {
+    return { owner: ownerId, $or: [{ _id: identifier }, { slug: identifier }] };
+  }
+  return { owner: ownerId, slug: identifier };
 };
 
 const getShareImagesQueryResult = async (share) => {
@@ -169,6 +211,7 @@ const createShare = async (req, res) => {
         return res.status(400).json({ message: 'PIN must be 4–8 digits' });
       }
       shareData.pinHash = await bcrypt.hash(pin, 10);
+      shareData.pinCipher = encryptSharePin(pin);
     }
 
     if (expiresInDays) {
@@ -319,6 +362,7 @@ const listShares = async (req, res) => {
         scope: s.scope,
         folderName: s.folder?.name || null,
         hasPin: !!s.pinHash,
+        canRevealPin: !!s.pinCipher,
         imageCount: s.images.length,
         expiresAt: s.expiresAt,
         url: `${process.env.FRONTEND_URL}/share/${req.user._id}/${s.slug}`,
@@ -331,10 +375,33 @@ const listShares = async (req, res) => {
   }
 };
 
+// GET /api/share/:slug/pin — reveal current user's share PIN (authenticated owner only)
+const revealSharePin = async (req, res) => {
+  try {
+    const identifier = req.params.id || req.params.slug;
+    const share = await Share.findOne(buildOwnedShareLookup(req.user._id, identifier));
+    if (!share) return res.status(404).json({ message: 'Share link not found' });
+    if (!share.pinHash) return res.status(400).json({ message: 'This share does not use a PIN' });
+
+    const pin = decryptSharePin(share.pinCipher);
+    if (!pin) {
+      return res.status(409).json({
+        message: 'PIN cannot be revealed for this share (created before PIN reveal support or missing secret).'
+      });
+    }
+
+    res.json({ pin });
+  } catch (err) {
+    console.error('revealSharePin error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // DELETE /api/share/:slug — delete a share link (authenticated)
 const deleteShare = async (req, res) => {
   try {
-    const share = await Share.findOneAndDelete({ slug: req.params.slug, owner: req.user._id });
+    const identifier = req.params.id || req.params.slug;
+    const share = await Share.findOneAndDelete(buildOwnedShareLookup(req.user._id, identifier));
     if (!share) return res.status(404).json({ message: 'Share link not found' });
     res.json({ message: 'Share link deleted' });
   } catch (err) {
@@ -343,5 +410,5 @@ const deleteShare = async (req, res) => {
   }
 };
 
-module.exports = { createShare, getShareInfo, getShareImages, downloadSharedFolderZip, listShares, deleteShare };
+module.exports = { createShare, getShareInfo, getShareImages, downloadSharedFolderZip, listShares, revealSharePin, deleteShare };
 

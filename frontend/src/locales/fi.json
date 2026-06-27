@@ -193,12 +193,21 @@
     "scopeAll": "Kaikki media",
     "scopeFolder": "Kansio",
     "scopeSelection": "{n} kuva | {n} kuvaa",
+    "showPin": "Näytä PIN",
+    "hidePin": "Piilota PIN",
+    "pinCode": "PIN",
+    "pinVisible": "PIN näkyvissä",
+    "pinUnavailable": "PIN ei ole näytettävissä tälle vanhalle jaolle",
+    "pinUnavailableShort": "Ei palautettavissa",
+    "pinRevealFailed": "PIN-koodia ei voitu näyttää tälle jaolle.",
     "copy": "Kopioi linkki",
     "open": "Avaa uudessa välilehdessä",
     "delete": "Poista",
     "deleteTitle": "Poista jako",
     "deleteConfirm": "Poistetaanko jako \u201c{slug}\u201d? Linkki lakkaa toimimasta välittömästi.",
-    "deleteConfirmBtn": "Poista jako"
+    "deleteConfirmBtn": "Poista jako",
+    "deleteConfirmInline": "Vahvista poisto",
+    "deleteFailed": "Jakoa ei voitu poistaa. Lista päivitettiin uudelleen."
   },
   "shareView": {
     "loading": "Ladataan…",

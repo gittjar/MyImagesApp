@@ -10,6 +10,7 @@ const shareSchema = new mongoose.Schema({
   folder: { type: mongoose.Schema.Types.ObjectId, ref: 'Folder', default: null },
   images: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Image' }],
   pinHash: { type: String, default: null },
+  pinCipher: { type: String, default: null },
   pinFailedAttempts: { type: Number, default: 0 },
   pinLockedUntil: { type: Date, default: null },
   expiresAt: { type: Date, default: null },

@@ -7,6 +7,7 @@ const {
   getShareImages,
   downloadSharedFolderZip,
   listShares,
+  revealSharePin,
   deleteShare
 } = require('../controllers/shareController');
 
@@ -21,15 +22,17 @@ const shareLimiter = rateLimit({
   message: { message: 'Too many requests, please try again later.' },
 });
 
+// Authenticated
+router.get('/', authenticateJWT, listShares);
+router.get('/item/:id/pin', authenticateJWT, revealSharePin);
+router.get('/:slug/pin', authenticateJWT, revealSharePin);
+router.post('/', authenticateJWT, createShare);
+router.delete('/item/:id', authenticateJWT, deleteShare);
+router.delete('/:slug', authenticateJWT, deleteShare);
+
 // Public (no JWT needed) — route: /share/:userId/:slug
 router.get('/:userId/:slug', shareLimiter, getShareInfo);
 router.post('/:userId/:slug/images', shareLimiter, getShareImages);
 router.post('/:userId/:slug/download-folder', shareLimiter, downloadSharedFolderZip);
-
-// Authenticated
-router.use(authenticateJWT);
-router.get('/', listShares);
-router.post('/', createShare);
-router.delete('/:slug', deleteShare);
 
 module.exports = router;
