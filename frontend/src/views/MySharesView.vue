@@ -181,13 +181,13 @@ const togglePin = async (s) => {
   }
 };
 
-const clearPendingDelete = () => {
+function clearPendingDelete() {
   if (pendingDeleteTimer) {
     clearTimeout(pendingDeleteTimer);
     pendingDeleteTimer = null;
   }
   pendingDeleteSlug.value = '';
-};
+}
 
 const remove = async (s) => {
   if (pendingDeleteSlug.value !== s.slug) {
